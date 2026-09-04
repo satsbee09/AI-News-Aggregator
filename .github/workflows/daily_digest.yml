@@ -1,9 +1,9 @@
 name: Daily AI News Intelligence Digest
 
 on:
-  # Scheduled daily run at 12:00 UTC (5:30 PM IST)
+  # Runs every night at 11:00 PM IST (17:30 UTC)
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '30 17 * * *'
   
   # Allows you to manually trigger the workflow anytime from the GitHub UI
   workflow_dispatch:
