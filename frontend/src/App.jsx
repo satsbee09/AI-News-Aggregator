@@ -51,7 +51,7 @@ const SUGGESTED_PROMPTS = [
 
 export default function App() {
   const [email, setEmail] = useState('');
-  const [userProfile, setUserProfile] = useState(null);
+  const [_userProfile, setUserProfile] = useState(null);
   const [inputEmail, setInputEmail] = useState('');
   
   // Tab State: 'topics' | 'news' | 'ask'
@@ -75,7 +75,7 @@ export default function App() {
   // Schedule Settings State
   const [schedTime, setSchedTime] = useState('23:00');
   const [schedFreq, setSchedFreq] = useState('daily');
-  const [schedTz, setSchedTz] = useState('Asia/Kolkata');
+  const [schedTz, setSchedTz] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata');
 
   // RAG Ask News State
   const [chatMessages, setChatMessages] = useState([]);
@@ -94,26 +94,23 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // 1. Initial Load from LocalStorage
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('news_aggregator_user_email');
-    const cachedFeed = localStorage.getItem('news_aggregator_cached_feed');
-    const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
-    setSchedTz(detectedTz);
-
-    if (cachedFeed) {
-      try {
-        setPreviewData(JSON.parse(cachedFeed));
-      } catch (e) {
-        console.error('Failed to parse cached feed', e);
+  const createUserAccount = async (userEmail) => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data);
+        setSelectedTopics(data.topics || []);
       }
+    } catch (err) {
+      console.error('Account creation error:', err);
+      showToast('Could not connect to backend server', 'error');
     }
-
-    if (savedEmail) {
-      setEmail(savedEmail);
-      loadUserProfile(savedEmail);
-    }
-  }, []);
+  };
 
   const loadUserProfile = async (userEmail) => {
     try {
@@ -128,29 +125,31 @@ export default function App() {
           setSchedTz(data.schedule.timezone || 'Asia/Kolkata');
         }
       } else {
-        createUserAccount(userEmail);
+        await createUserAccount(userEmail);
       }
     } catch (err) {
       console.error('Error loading profile:', err);
     }
   };
 
-  const createUserAccount = async (userEmail) => {
-    try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUserProfile(data);
-        setSelectedTopics(data.topics || []);
+  // 1. Initial Load from LocalStorage
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('news_aggregator_user_email');
+    const cachedFeed = localStorage.getItem('news_aggregator_cached_feed');
+
+    if (cachedFeed) {
+      try {
+        setPreviewData(JSON.parse(cachedFeed));
+      } catch (e) {
+        console.error('Failed to parse cached feed', e);
       }
-    } catch (err) {
-      showToast('Could not connect to backend server', 'error');
     }
-  };
+
+    if (savedEmail) {
+      setEmail(savedEmail);
+      loadUserProfile(savedEmail);
+    }
+  }, []);
 
   const handleEmailSubmit = (e) => {
     e.preventDefault();
@@ -238,6 +237,7 @@ export default function App() {
         showToast('Failed to save topics', 'error');
       }
     } catch (err) {
+      console.error('Error saving topics:', err);
       showToast('Server error while saving topics', 'error');
     } finally {
       setSavingTopics(false);
@@ -307,6 +307,7 @@ export default function App() {
         showToast('Failed to save schedule', 'error');
       }
     } catch (err) {
+      console.error('Error saving schedule:', err);
       showToast('Server error saving schedule', 'error');
     } finally {
       setSavingSchedule(false);
@@ -443,6 +444,7 @@ export default function App() {
         showToast(data.message || 'Pipeline trigger completed', 'info');
       }
     } catch (err) {
+      console.error('Pipeline execution error:', err);
       showToast('Error executing pipeline', 'error');
     } finally {
       setTriggeringDigest(false);
