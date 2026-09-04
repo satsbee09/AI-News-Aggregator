@@ -36,10 +36,15 @@ async def internal_news_preview(payload: InternalPreviewRequest) -> Dict[str, An
         )
 
 from app.agent.rag_agent import rag_agent
+from app.services.search_service import search_service
 
 class InternalAskRequest(BaseModel):
     email: EmailStr
     question: str = Field(..., min_length=2, description="Natural language question about recent news")
+
+class InternalLiveSearchRequest(BaseModel):
+    query: str = Field(..., min_length=2, description="Search query for live news")
+    topic: Optional[str] = Field(None, description="Optional topic category to scope search")
 
 @router.post("/run-pipeline", status_code=status.HTTP_200_OK)
 async def internal_run_pipeline(payload: InternalPipelineRequest) -> Dict[str, Any]:
@@ -69,3 +74,34 @@ async def internal_ask(payload: InternalAskRequest) -> Dict[str, Any]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"RAG query failed: {str(e)}"
         )
+
+@router.post("/search-live", status_code=status.HTTP_200_OK)
+async def internal_search_live(payload: InternalLiveSearchRequest) -> Dict[str, Any]:
+    """Protected internal endpoint for on-demand live web news search (Google CSE -> Brave Search)."""
+    try:
+        raw_results = search_service.live_search(query=payload.query, topic=payload.topic, num_results=6)
+        
+        # Format results with clean summary
+        formatted_results = []
+        for item in raw_results:
+            formatted_results.append({
+                "title": item.get("title", "Untitled"),
+                "summary": item.get("snippet", ""),
+                "url": item.get("url", ""),
+                "source": item.get("source", "web"),
+                "published": item.get("published")
+            })
+
+        return {
+            "status": "success",
+            "query": payload.query,
+            "topic": payload.topic,
+            "count": len(formatted_results),
+            "results": formatted_results
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Live search failed: {str(e)}"
+        )
+

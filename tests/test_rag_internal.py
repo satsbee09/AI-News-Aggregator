@@ -30,7 +30,7 @@ def test_internal_ask_rag_answering():
     
     payload = {
         "email": "satsbee4921@gmail.com",
-        "question": "What is the latest news regarding cricket matches and sports?"
+        "question": "What are the latest AI models and breakthroughs?"
     }
     res = client.post("/internal/ask", json=payload, headers=headers)
     print("\n[TEST RAG] Response status:", res.status_code)

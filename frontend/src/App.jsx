@@ -24,7 +24,8 @@ import {
   ArrowRight,
   MessageSquareText,
   Bot,
-  RotateCcw
+  RotateCcw,
+  Search
 } from 'lucide-react';
 
 const CATEGORY_META = {
@@ -65,6 +66,11 @@ export default function App() {
   const [previewData, setPreviewData] = useState([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+
+  // Live Web Search State (Google + Brave)
+  const [liveSearchQuery, setLiveSearchQuery] = useState('');
+  const [liveSearchResults, setLiveSearchResults] = useState(null);
+  const [liveSearchLoading, setLiveSearchLoading] = useState(false);
   
   // Schedule Settings State
   const [schedTime, setSchedTime] = useState('23:00');
@@ -348,6 +354,7 @@ export default function App() {
           role: 'assistant',
           text: data.answer || 'No answer generated.',
           sources: data.sources || [],
+          from_live_search: data.from_live_search || false,
           grounded: data.grounded,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
@@ -358,6 +365,7 @@ export default function App() {
           role: 'assistant',
           text: data.error || 'Failed to retrieve an answer. Please try again.',
           sources: [],
+          from_live_search: false,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setChatMessages(prev => [...prev, errorMsg]);
@@ -369,6 +377,7 @@ export default function App() {
         role: 'assistant',
         text: 'Network error connecting to the AI intelligence engine. Please ensure services are running.',
         sources: [],
+        from_live_search: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }]);
     } finally {
@@ -379,6 +388,43 @@ export default function App() {
   const handleClearChat = () => {
     setChatMessages([]);
     showToast('Chat history cleared', 'info');
+  };
+
+  // Live Web Search Handler (Google CSE -> Brave Search)
+  const handleLiveSearch = async (overrideQuery = null) => {
+    const q = (overrideQuery || liveSearchQuery).trim();
+    if (!q || liveSearchLoading) return;
+
+    setLiveSearchLoading(true);
+    try {
+      const res = await fetch('/api/search/live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: q,
+          topic: selectedTopics[0]?.name || 'general'
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        const results = data.results || [];
+        setLiveSearchResults(results);
+        showToast(`Found ${results.length} live search result(s) for "${q}"`, results.length > 0 ? 'success' : 'info');
+      } else {
+        showToast(data.error || 'Live search failed', 'error');
+      }
+    } catch (err) {
+      console.error('Live search error:', err);
+      showToast('Error connecting to live search proxy', 'error');
+    } finally {
+      setLiveSearchLoading(false);
+    }
+  };
+
+  const handleClearLiveSearch = () => {
+    setLiveSearchResults(null);
+    setLiveSearchQuery('');
   };
 
   // Instant Manual Dispatch Test
@@ -752,6 +798,108 @@ export default function App() {
         {/* =================================================================== */}
         {activeTab === 'news' && (
           <div className="card-panel" style={{ padding: '32px' }}>
+            
+            {/* Standalone Live Search Bar */}
+            <div className="live-search-container">
+              <form onSubmit={(e) => { e.preventDefault(); handleLiveSearch(); }} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Search live web news (e.g. OpenAI updates, SpaceX Starship, Delhi AQI, Ghaziabad transit)..."
+                    value={liveSearchQuery}
+                    onChange={(e) => setLiveSearchQuery(e.target.value)}
+                    style={{ paddingLeft: '44px', borderRadius: 'var(--radius-full)' }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={liveSearchLoading || !liveSearchQuery.trim()}
+                  className="btn-primary"
+                  style={{ padding: '12px 22px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
+                >
+                  <Search size={16} /> {liveSearchLoading ? 'Searching...' : 'Search Live Web'}
+                </button>
+                {liveSearchResults && (
+                  <button
+                    type="button"
+                    onClick={handleClearLiveSearch}
+                    className="btn-secondary"
+                    style={{ padding: '12px 18px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
+                  >
+                    <X size={16} /> Clear
+                  </button>
+                )}
+              </form>
+            </div>
+
+            {/* Live Search Results View (When Active) */}
+            {liveSearchResults && (
+              <div style={{ marginBottom: '36px', background: '#F8F8FD', padding: '24px', borderRadius: 'var(--radius-xl)', border: '1.5px solid rgba(108, 92, 231, 0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>🔎</span> Live Web Results for "{liveSearchQuery}"
+                    </h3>
+                    <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                      Retrieved in real-time via Google Custom Search / Brave Search fallback.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleClearLiveSearch}
+                    className="btn-secondary"
+                    style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                  >
+                    ← Back to Curated Feed
+                  </button>
+                </div>
+
+                {liveSearchResults.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                    No live web search results found for this query. Try different keywords.
+                  </div>
+                ) : (
+                  <div className="news-grid">
+                    {liveSearchResults.map((item, idx) => (
+                      <div key={idx} className="news-card" style={{ '--card-accent': item.source === 'google' ? '#4285F4' : '#FF5500' }}>
+                        <div>
+                          <div className="card-top-row">
+                            <span className={`source-badge ${item.source === 'google' ? 'search-badge-google' : item.source === 'brave' ? 'search-badge-brave' : 'search-badge-web'}`}>
+                              {item.source ? item.source.toUpperCase() : 'WEB'}
+                            </span>
+                          </div>
+                          <h4 className="card-title">
+                            <a href={item.url} target="_blank" rel="noopener noreferrer">
+                              {item.title}
+                            </a>
+                          </h4>
+                          <p className="card-snippet">
+                            {item.summary || item.snippet}
+                          </p>
+                        </div>
+                        <div className="card-footer">
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            {item.published ? new Date(item.published).toLocaleDateString() : 'Live Web'}
+                          </span>
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="read-more-link"
+                            style={{ color: item.source === 'google' ? '#4285F4' : '#FF5500' }}
+                          >
+                            Read Source <ExternalLink size={13} />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Standard Curated Feed Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-subtle)', paddingBottom: '18px' }}>
               <div>
                 <h2 style={{ fontSize: '22px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -996,14 +1144,20 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="chat-bubble-ai">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             ✨ Intelligence Briefing
                           </span>
-                          {msg.grounded && (
-                            <span style={{ fontSize: '10.5px', background: 'rgba(0, 217, 165, 0.12)', color: '#00D9A5', fontWeight: '700', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
-                              Grounded in Sources
+                          {msg.from_live_search ? (
+                            <span className="live-search-notice-pill">
+                              🔎 Live Web Search Fallback
                             </span>
+                          ) : (
+                            msg.grounded && (
+                              <span style={{ fontSize: '10.5px', background: 'rgba(0, 217, 165, 0.12)', color: '#00D9A5', fontWeight: '700', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                                Grounded in Collection
+                              </span>
+                            )
                           )}
                         </div>
 
