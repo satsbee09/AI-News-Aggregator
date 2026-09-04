@@ -188,3 +188,123 @@ class MongoRepository:
         result = self.db.sent_logs.insert_one(log_doc)
         log_doc["_id"] = result.inserted_id
         return log_doc
+
+    # ==================== VECTOR EMBEDDING METHODS ====================
+
+    def save_article_embedding(
+        self,
+        article_id: Any,
+        digest_id: Any,
+        topic: str,
+        title: str,
+        text: str,
+        embedding: List[float],
+        source_url: str = "",
+        published_at: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        """Upserts an article vector embedding document in the article_embeddings collection."""
+        art_oid = ObjectId(article_id) if isinstance(article_id, str) else article_id
+        dig_oid = ObjectId(digest_id) if isinstance(digest_id, str) else digest_id
+        
+        doc = {
+            "article_id": art_oid,
+            "digest_id": dig_oid,
+            "topic": topic,
+            "title": title,
+            "text": text,
+            "embedding": embedding,
+            "source_url": source_url,
+            "published_at": published_at or datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        self.db.article_embeddings.update_one(
+            {"digest_id": dig_oid},
+            {"$set": doc},
+            upsert=True
+        )
+        return doc
+
+    def get_unembedded_digests(self) -> List[Dict[str, Any]]:
+        """Finds all digests that have not yet been embedded."""
+        embedded_digest_ids = set(self.db.article_embeddings.distinct("digest_id"))
+        pipeline = [
+            {"$match": {"_id": {"$nin": list(embedded_digest_ids)}}},
+            {
+                "$lookup": {
+                    "from": "articles",
+                    "localField": "article_id",
+                    "foreignField": "_id",
+                    "as": "article"
+                }
+            },
+            {"$unwind": {"path": "$article", "preserveNullAndEmptyArrays": True}}
+        ]
+        return list(self.db.digests.aggregate(pipeline))
+
+    def vector_search(
+        self,
+        query_vector: List[float],
+        limit: int = 6,
+        topics: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Executes vector similarity search.
+        First attempts MongoDB Atlas $vectorSearch aggregation stage.
+        Gracefully falls back to in-memory cosine similarity ranking if search index is not yet active.
+        """
+        # 1. Try MongoDB Atlas $vectorSearch aggregation pipeline
+        try:
+            vector_search_stage: Dict[str, Any] = {
+                "index": "vector_index",
+                "path": "embedding",
+                "queryVector": query_vector,
+                "numCandidates": 100,
+                "limit": limit
+            }
+            if topics and len(topics) > 0:
+                vector_search_stage["filter"] = {"topic": {"$in": topics}}
+
+            pipeline = [
+                {"$vectorSearch": vector_search_stage},
+                {
+                    "$project": {
+                        "_id": 1,
+                        "article_id": 1,
+                        "digest_id": 1,
+                        "topic": 1,
+                        "title": 1,
+                        "text": 1,
+                        "source_url": 1,
+                        "published_at": 1,
+                        "score": {"$meta": "vectorSearchScore"}
+                    }
+                }
+            ]
+            results = list(self.db.article_embeddings.aggregate(pipeline))
+            if results:
+                return results
+        except Exception as e:
+            # Atlas Vector Search index might be initializing or running in standard search mode
+            pass
+
+        # 2. Resilient In-Memory Cosine Similarity Fallback
+        from app.services.embedding_service import embedding_service
+        match_filter: Dict[str, Any] = {}
+        if topics and len(topics) > 0:
+            match_filter["topic"] = {"$in": topics}
+
+        candidates = list(self.db.article_embeddings.find(match_filter).limit(250))
+        if not candidates:
+            # If no matches with topic filter, fallback to general candidates
+            candidates = list(self.db.article_embeddings.find({}).limit(250))
+
+        scored = []
+        for item in candidates:
+            emb = item.get("embedding", [])
+            if emb and len(emb) == len(query_vector):
+                score = embedding_service.cosine_similarity(query_vector, emb)
+                item["score"] = score
+                scored.append(item)
+
+        scored.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+        return scored[:limit]

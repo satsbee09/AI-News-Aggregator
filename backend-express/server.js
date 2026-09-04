@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const usersRoutes = require('./routes/users');
 const newsRoutes = require('./routes/news');
+const askRoutes = require('./routes/ask');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,6 +20,7 @@ app.use(express.json());
 // Mount Routes
 app.use('/api/users', usersRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/ask', askRoutes);
 
 const { startScheduler } = require('./services/scheduler');
 

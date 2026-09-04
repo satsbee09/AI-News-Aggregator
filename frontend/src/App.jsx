@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Newspaper, 
   Clock, 
@@ -21,7 +21,10 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Info,
-  ArrowRight
+  ArrowRight,
+  MessageSquareText,
+  Bot,
+  RotateCcw
 } from 'lucide-react';
 
 const CATEGORY_META = {
@@ -38,12 +41,19 @@ const CATEGORY_META = {
 
 const PREDEFINED_TOPICS = Object.values(CATEGORY_META);
 
+const SUGGESTED_PROMPTS = [
+  "What are the latest breakthroughs in AI & LLMs?",
+  "Give me a summary of current cricket & sports news",
+  "What are the top national & world geopolitics stories?",
+  "What is the latest weather update in Delhi NCR?"
+];
+
 export default function App() {
   const [email, setEmail] = useState('');
   const [userProfile, setUserProfile] = useState(null);
   const [inputEmail, setInputEmail] = useState('');
   
-  // Tab State: 'topics' | 'news'
+  // Tab State: 'topics' | 'news' | 'ask'
   const [activeTab, setActiveTab] = useState('topics');
   
   // Topic State
@@ -60,6 +70,12 @@ export default function App() {
   const [schedTime, setSchedTime] = useState('23:00');
   const [schedFreq, setSchedFreq] = useState('daily');
   const [schedTz, setSchedTz] = useState('Asia/Kolkata');
+
+  // RAG Ask News State
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
   
   // UI States
   const [toast, setToast] = useState(null);
@@ -291,6 +307,80 @@ export default function App() {
     }
   };
 
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (activeTab === 'ask') {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, chatLoading, activeTab]);
+
+  // Send Question to RAG Endpoint
+  const handleSendQuestion = async (customQuery = null) => {
+    const query = (customQuery || chatInput).trim();
+    if (!query || chatLoading) return;
+
+    const userMsg = {
+      id: Date.now().toString(),
+      role: 'user',
+      text: query,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    if (!customQuery) setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          question: query,
+          topics: selectedTopics.map(t => t.name)
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        const aiMsg = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          text: data.answer || 'No answer generated.',
+          sources: data.sources || [],
+          grounded: data.grounded,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages(prev => [...prev, aiMsg]);
+      } else {
+        const errorMsg = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          text: data.error || 'Failed to retrieve an answer. Please try again.',
+          sources: [],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages(prev => [...prev, errorMsg]);
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+      setChatMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        text: 'Network error connecting to the AI intelligence engine. Please ensure services are running.',
+        sources: [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleClearChat = () => {
+    setChatMessages([]);
+    showToast('Chat history cleared', 'info');
+  };
+
   // Instant Manual Dispatch Test
   const handleTriggerTest = async () => {
     if (!email) return;
@@ -412,6 +502,12 @@ export default function App() {
           >
             <Zap size={16} /> News Feed 
             {totalArticlesLoaded > 0 && <span className="tab-count-badge">{totalArticlesLoaded}</span>}
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'ask' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ask')}
+          >
+            <MessageSquareText size={16} /> Ask News (RAG)
           </button>
         </nav>
 
@@ -818,6 +914,212 @@ export default function App() {
               );
             })}
 
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 3: ASK NEWS (RAG Natural Language Search & Q&A)                 */}
+        {/* =================================================================== */}
+        {activeTab === 'ask' && (
+          <div className="chat-container">
+            {/* Header bar */}
+            <div className="chat-header-bar">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(108, 92, 231, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <Bot size={20} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>
+                    AI News Assistant
+                  </h2>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                    Grounded RAG Search over {previewData.length > 0 ? `${totalArticlesLoaded} active` : 'all'} ingested news articles
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', background: 'rgba(0, 217, 165, 0.12)', color: '#00D9A5', fontWeight: '700', padding: '4px 10px', borderRadius: 'var(--radius-full)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  ● Vector Search Online
+                </span>
+                {chatMessages.length > 0 && (
+                  <button
+                    onClick={handleClearChat}
+                    className="btn-secondary"
+                    style={{ fontSize: '12px', padding: '6px 12px' }}
+                    title="Clear conversation"
+                  >
+                    <RotateCcw size={13} /> Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Message scroll area */}
+            <div className="chat-messages-scroll">
+              {chatMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', margin: 'auto', maxWidth: '520px', padding: '32px 16px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'rgba(108, 92, 231, 0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                    <Sparkles size={28} />
+                  </div>
+                  <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
+                    Ask anything about the news
+                  </h3>
+                  <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '24px' }}>
+                    Query our vector-indexed news repository. Every answer is synthesized with factual anti-hype context and direct citations to original sources.
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                      Try asking:
+                    </div>
+                    {SUGGESTED_PROMPTS.map((prompt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendQuestion(prompt)}
+                        className="suggested-chip"
+                        style={{ textAlign: 'left', padding: '10px 16px', fontSize: '13px', borderRadius: 'var(--radius-lg)' }}
+                      >
+                        ⚡ {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                chatMessages.map(msg => (
+                  <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    {msg.role === 'user' ? (
+                      <div className="chat-bubble-user">
+                        <div>{msg.text}</div>
+                        <div style={{ fontSize: '11px', opacity: 0.75, textAlign: 'right', marginTop: '4px' }}>
+                          {msg.timestamp}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="chat-bubble-ai">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            ✨ Intelligence Briefing
+                          </span>
+                          {msg.grounded && (
+                            <span style={{ fontSize: '10.5px', background: 'rgba(0, 217, 165, 0.12)', color: '#00D9A5', fontWeight: '700', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                              Grounded in Sources
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ whiteSpace: 'pre-line', fontSize: '14.5px', lineHeight: '1.65', color: 'var(--text-main)' }}>
+                          {msg.text}
+                        </div>
+
+                        {/* Grounded Sources Cards */}
+                        {msg.sources && msg.sources.length > 0 && (
+                          <div className="chat-sources-container">
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>📚 Grounded Sources ({msg.sources.length}):</span>
+                            </div>
+                            <div className="chat-source-grid">
+                              {msg.sources.map((src, sIdx) => {
+                                const topicColor = getCategoryColor(src.topic);
+                                return (
+                                  <a
+                                    key={sIdx}
+                                    href={src.source_url || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="chat-source-card"
+                                  >
+                                    <div>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '10.5px', fontWeight: '700', background: topicColor, color: '#ffffff', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                                          {src.topic || 'NEWS'}
+                                        </span>
+                                        {src.similarity && (
+                                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                            {(src.similarity * 100).toFixed(0)}% match
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-main)', lineHeight: '1.35', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                        {src.title}
+                                      </div>
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      View Source <ExternalLink size={11} />
+                                    </div>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'right', marginTop: '10px' }}>
+                          {msg.timestamp}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+
+              {chatLoading && (
+                <div className="typing-indicator">
+                  <div className="typing-dot" />
+                  <div className="typing-dot" />
+                  <div className="typing-dot" />
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '6px', fontWeight: '600' }}>
+                    Searching vector embeddings & synthesizing answer...
+                  </span>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Quick suggested prompts bar (if chat is not empty) */}
+            {chatMessages.length > 0 && (
+              <div className="suggested-prompts-bar">
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: '700', alignSelf: 'center', marginRight: '4px' }}>
+                  Quick:
+                </span>
+                {SUGGESTED_PROMPTS.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSendQuestion(prompt)}
+                    disabled={chatLoading}
+                    className="suggested-chip"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Input Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendQuestion();
+              }}
+              className="chat-input-bar"
+            >
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Ask any question about today's news..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={chatLoading}
+                style={{ flex: 1, padding: '12px 18px', borderRadius: 'var(--radius-full)' }}
+              />
+              <button
+                type="submit"
+                disabled={chatLoading || !chatInput.trim()}
+                className="btn-primary"
+                style={{ borderRadius: 'var(--radius-full)', padding: '12px 22px' }}
+              >
+                <Send size={16} /> Send
+              </button>
+            </form>
           </div>
         )}
 

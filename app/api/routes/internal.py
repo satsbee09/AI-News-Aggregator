@@ -35,6 +35,12 @@ async def internal_news_preview(payload: InternalPreviewRequest) -> Dict[str, An
             detail=f"Preview generation failed: {str(e)}"
         )
 
+from app.agent.rag_agent import rag_agent
+
+class InternalAskRequest(BaseModel):
+    email: EmailStr
+    question: str = Field(..., min_length=2, description="Natural language question about recent news")
+
 @router.post("/run-pipeline", status_code=status.HTTP_200_OK)
 async def internal_run_pipeline(payload: InternalPipelineRequest) -> Dict[str, Any]:
     """Protected internal endpoint for running full scraping, curation, and email delivery."""
@@ -46,4 +52,20 @@ async def internal_run_pipeline(payload: InternalPipelineRequest) -> Dict[str, A
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Pipeline execution failed: {str(e)}"
+        )
+
+@router.post("/ask", status_code=status.HTTP_200_OK)
+async def internal_ask(payload: InternalAskRequest) -> Dict[str, Any]:
+    """Protected internal endpoint for answering natural language news queries via RAG."""
+    try:
+        response = rag_agent.answer_question(email=payload.email, question=payload.question)
+        return {
+            "status": "success",
+            "question": payload.question,
+            **response
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"RAG query failed: {str(e)}"
         )

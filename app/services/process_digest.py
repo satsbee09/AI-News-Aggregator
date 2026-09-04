@@ -3,7 +3,7 @@ from app.database.repository import MongoRepository
 from app.agent.digest_agent import DigestAgent
 
 def process_unprocessed_digests(repo: Optional[MongoRepository] = None, limit: int = 10) -> int:
-    """Fetches unprocessed raw articles from MongoDB and generates LLM summaries."""
+    """Fetches unprocessed raw articles from MongoDB and generates LLM summaries + vector embeddings."""
     repo = repo or MongoRepository()
     unprocessed_articles = repo.get_unprocessed_articles()
 
@@ -32,7 +32,7 @@ def process_unprocessed_digests(repo: Optional[MongoRepository] = None, limit: i
             if source == "open_meteo":
                 summary = raw_content.split("\n")[0] if "\n" in raw_content else raw_content
                 takeaways = "\n".join([f"- {line.strip()}" for line in raw_content.split("\n")[1:] if line.strip()])
-                repo.save_digest(
+                saved_digest = repo.save_digest(
                     article_id=article_id,
                     summary=summary,
                     key_takeaways=takeaways or "- Check local weather advisories",
@@ -40,6 +40,24 @@ def process_unprocessed_digests(repo: Optional[MongoRepository] = None, limit: i
                     topic_name=topic_name
                 )
                 processed_count += 1
+
+                # Generate vector embedding
+                try:
+                    from app.services.embedding_service import embedding_service
+                    embed_text = f"{title}\n{summary}\n{takeaways}"
+                    vector = embedding_service.embed_text(embed_text)
+                    repo.save_article_embedding(
+                        article_id=article_id,
+                        digest_id=saved_digest["_id"],
+                        topic=topic_name,
+                        title=title,
+                        text=embed_text,
+                        embedding=vector,
+                        source_url=article.get("url", ""),
+                        published_at=article.get("published_at")
+                    )
+                except Exception as emb_err:
+                    print(f"      [WARN] Could not generate embedding for weather: {emb_err}")
                 continue
 
             digest_data = agent.summarize(
@@ -51,7 +69,7 @@ def process_unprocessed_digests(repo: Optional[MongoRepository] = None, limit: i
             # Format takeaways as formatted markdown bullets
             formatted_takeaways = "\n".join([f"- {bullet.lstrip('•-* ')}" for bullet in digest_data.key_takeaways])
 
-            repo.save_digest(
+            saved_digest = repo.save_digest(
                 article_id=article_id,
                 summary=digest_data.summary,
                 key_takeaways=formatted_takeaways,
@@ -59,6 +77,25 @@ def process_unprocessed_digests(repo: Optional[MongoRepository] = None, limit: i
                 topic_name=topic_name
             )
             processed_count += 1
+
+            # Generate and persist vector embedding in article_embeddings
+            try:
+                from app.services.embedding_service import embedding_service
+                embed_text = f"{title}\n{digest_data.summary}\n{formatted_takeaways}"
+                vector = embedding_service.embed_text(embed_text)
+                repo.save_article_embedding(
+                    article_id=article_id,
+                    digest_id=saved_digest["_id"],
+                    topic=topic_name,
+                    title=title,
+                    text=embed_text,
+                    embedding=vector,
+                    source_url=article.get("url", ""),
+                    published_at=article.get("published_at")
+                )
+            except Exception as emb_err:
+                print(f"      [WARN] Could not generate embedding for article ID={article_id}: {emb_err}")
+
         except Exception as e:
             print(f"   [ERROR] Failed to summarize article ID={article_id}: {e}")
 
