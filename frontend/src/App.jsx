@@ -1,31 +1,57 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  Newspaper, 
+  Clock, 
+  Settings, 
+  Sparkles, 
+  Zap, 
+  Check, 
+  X, 
+  LogOut, 
+  RefreshCw, 
+  Send, 
+  ExternalLink, 
+  MapPin, 
+  CloudSun, 
+  Cpu, 
+  Trophy, 
+  Globe, 
+  Briefcase, 
+  Film, 
+  AlertCircle, 
+  CheckCircle2, 
+  Info,
+  ArrowRight
+} from 'lucide-react';
 
-const PREDEFINED_TOPICS = [
-  { name: 'Frontier AI & LLMs', scope: 'ai', category: 'ai', icon: '🤖' },
-  { name: 'Local Ghaziabad News', scope: 'local', category: 'local', icon: '📍' },
-  { name: 'National News & Politics', scope: 'national', category: 'national', icon: '🇮🇳' },
-  { name: 'Global Geopolitics', scope: 'international', category: 'international', icon: '🌍' },
-  { name: 'Cricket & Sports', scope: 'sports', category: 'sports', icon: '🏏' },
-  { name: 'Delhi NCR Weather', scope: 'weather', category: 'weather', icon: '🌦️' },
-  { name: 'Global Markets & Business', scope: 'general', category: 'general', icon: '💼' },
-  { name: 'Tech Startups & Venture', scope: 'general', category: 'general', icon: '💻' },
-  { name: 'Cinema & Entertainment', scope: 'general', category: 'general', icon: '🎬' },
-];
+const CATEGORY_META = {
+  ai: { name: 'Frontier AI & LLMs', scope: 'ai', category: 'ai', color: '#6C5CE7', icon: Cpu },
+  local: { name: 'Local Ghaziabad News', scope: 'local', category: 'local', color: '#FF9F43', icon: MapPin },
+  national: { name: 'National Politics & India', scope: 'national', category: 'politics', color: '#EE5A6F', icon: Globe },
+  international: { name: 'Global Geopolitics', scope: 'international', category: 'international', color: '#6C5CE7', icon: Globe },
+  sports: { name: 'Cricket & Sports', scope: 'sports', category: 'sports', color: '#00D9A5', icon: Trophy },
+  weather: { name: 'Delhi NCR Weather', scope: 'weather', category: 'weather', color: '#4ECDC4', icon: CloudSun },
+  business: { name: 'Global Markets & Business', scope: 'general', category: 'business', color: '#FFD93D', icon: Briefcase },
+  tech: { name: 'Tech Startups & Venture', scope: 'general', category: 'tech', color: '#A29BFE', icon: Cpu },
+  entertainment: { name: 'Cinema & Pop Culture', scope: 'general', category: 'entertainment', color: '#FD79A8', icon: Film },
+};
+
+const PREDEFINED_TOPICS = Object.values(CATEGORY_META);
 
 export default function App() {
   const [email, setEmail] = useState('');
   const [userProfile, setUserProfile] = useState(null);
   const [inputEmail, setInputEmail] = useState('');
   
-  // Tab Management State ('topics' | 'news')
+  // Tab State: 'topics' | 'news'
   const [activeTab, setActiveTab] = useState('topics');
   
-  // Topic Management State
+  // Topic State
   const [selectedTopics, setSelectedTopics] = useState([]);
   const [customName, setCustomName] = useState('');
   const [customScope, setCustomScope] = useState('general');
   
-  // Live News Preview State
+  // Live News State
   const [previewData, setPreviewData] = useState([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState(false);
@@ -114,6 +140,7 @@ export default function App() {
     localStorage.setItem('news_aggregator_user_email', cleanEmail);
     setEmail(cleanEmail);
     createUserAccount(cleanEmail);
+    showToast(`Welcome! Setting up dashboard for ${cleanEmail}`, 'success');
   };
 
   const handleLogout = () => {
@@ -127,7 +154,7 @@ export default function App() {
     showToast('Logged out successfully', 'info');
   };
 
-  // Toggle Predefined Topic
+  // Toggle Topic Chip
   const togglePredefinedTopic = (topic) => {
     const exists = selectedTopics.some(t => t.name.toLowerCase() === topic.name.toLowerCase());
     if (exists) {
@@ -141,7 +168,7 @@ export default function App() {
     }
   };
 
-  // Add Custom Topic
+  // Add Custom Topic Chip
   const handleAddCustomTopic = (e) => {
     e.preventDefault();
     if (!customName.trim()) return;
@@ -160,10 +187,9 @@ export default function App() {
 
     setSelectedTopics([...selectedTopics, newTopic]);
     setCustomName('');
-    showToast(`Added custom topic "${newTopic.name}"`, 'success');
+    showToast(`Added custom channel "${newTopic.name}"`, 'success');
   };
 
-  // Remove Topic
   const handleRemoveTopic = (name) => {
     if (selectedTopics.length === 1) {
       showToast('At least one topic is required.', 'error');
@@ -172,7 +198,7 @@ export default function App() {
     setSelectedTopics(selectedTopics.filter(t => t.name !== name));
   };
 
-  // Save Topics to Backend (ONLY saves preferences, does NOT auto-fetch preview)
+  // Save Topics (No auto-fetch)
   const handleSaveTopics = async () => {
     if (!email) return;
     setSavingTopics(true);
@@ -185,7 +211,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setUserProfile(data);
-        showToast('Topics saved successfully!', 'success');
+        showToast('Topic preferences saved!', 'success');
       } else {
         showToast('Failed to save topics', 'error');
       }
@@ -196,7 +222,7 @@ export default function App() {
     }
   };
 
-  // Fetch Live News Preview on Explicit User Demand
+  // Fetch News Feed on Explicit Trigger
   const fetchPreviewNews = async (topicsToFetch = selectedTopics, switchTab = true) => {
     if (!topicsToFetch || topicsToFetch.length === 0) {
       showToast('Please select at least one topic first!', 'error');
@@ -254,7 +280,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setUserProfile(data);
-        showToast(`Schedule updated! Digest scheduled for ${schedTime} (${schedFreq.replace('_', ' ')})`, 'success');
+        showToast(`Schedule updated for ${schedTime} (${schedFreq.replace('_', ' ')})`, 'success');
       } else {
         showToast('Failed to save schedule', 'error');
       }
@@ -265,7 +291,7 @@ export default function App() {
     }
   };
 
-  // Manual Trigger Test Digest
+  // Instant Manual Dispatch Test
   const handleTriggerTest = async () => {
     if (!email) return;
     setTriggeringDigest(true);
@@ -290,167 +316,174 @@ export default function App() {
   // Toast Component
   const renderToast = () => {
     if (!toast) return null;
-    const bg = toast.type === 'success' ? '#059669' : toast.type === 'error' ? '#e11d48' : '#2563eb';
+    const toastClass = toast.type === 'success' ? 'toast-success' : toast.type === 'error' ? 'toast-error' : 'toast-info';
+    const IconComponent = toast.type === 'success' ? CheckCircle2 : toast.type === 'error' ? AlertCircle : Info;
     return (
-      <div style={{
-        position: 'fixed',
-        bottom: '24px',
-        right: '24px',
-        background: bg,
-        color: '#ffffff',
-        padding: '12px 20px',
-        borderRadius: '10px',
-        fontWeight: '600',
-        fontSize: '13.5px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-        zIndex: 9999,
-        animation: 'slideIn 0.2s ease-out'
-      }}>
-        {toast.message}
+      <div className="toast-container">
+        <div className={`toast-pill ${toastClass}`}>
+          <IconComponent size={18} />
+          <span>{toast.message}</span>
+        </div>
       </div>
     );
   };
 
+  // Helper to get category color
+  const getCategoryColor = (catKey) => {
+    const key = (catKey || 'general').toLowerCase();
+    return CATEGORY_META[key]?.color || '#6C5CE7';
+  };
+
+  // Count total articles
+  const totalArticlesLoaded = previewData.reduce((acc, g) => acc + (g.articles?.length || 0), 0);
+
   // ---------------------------------------------------------------------------
-  // View 1: Email Entry / Landing Page (Phase A)
+  // View 1: Landing Page (Phase A)
   // ---------------------------------------------------------------------------
   if (!email) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'radial-gradient(circle at 50% 20%, rgba(108, 92, 231, 0.12) 0%, transparent 60%), #F7F7FC' }}>
         {renderToast()}
-        <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '40px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: '42px', marginBottom: '12px' }}>🌐</div>
-          <h1 style={{ fontSize: '26px', fontWeight: '800', marginBottom: '8px' }}>
-            Universal News Intelligence
+        <div className="card-panel" style={{ maxWidth: '460px', width: '100%', padding: '44px 36px', textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', background: 'linear-gradient(135deg, #6C5CE7 0%, #8E78FF 100%)', borderRadius: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', marginBottom: '20px', boxShadow: '0 8px 24px rgba(108, 92, 231, 0.3)' }}>
+            <Newspaper size={32} />
+          </div>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-main)' }}>
+            Universal News
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '28px', lineHeight: '1.6' }}>
-            Get factual, anti-hype news summaries on <strong>any topic you care about</strong> — Local, National, Global, Frontier AI, Cricket, and Weather.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px', lineHeight: '1.6' }}>
+            Daily factual, anti-hype intelligence briefings on <strong>any topic you choose</strong> — AI, Cricket, Local, Weather & World News.
           </p>
 
           <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <input
               type="email"
-              className="input-field"
+              className="form-input"
               placeholder="Enter your email address..."
               value={inputEmail}
               onChange={(e) => setInputEmail(e.target.value)}
               required
               autoFocus
+              style={{ fontSize: '15px', padding: '14px 18px', borderRadius: 'var(--radius-full)' }}
             />
-            <button type="submit" className="btn-primary" style={{ justifyContent: 'center', padding: '14px' }}>
-              Access Your Dashboard &rarr;
+            <button type="submit" className="btn-primary" style={{ padding: '14px', fontSize: '15px' }}>
+              Access Dashboard <ArrowRight size={18} />
             </button>
           </form>
           
-          <div style={{ marginTop: '24px', fontSize: '12px', color: 'var(--text-dim)' }}>
-            100% Free • No password required • Automated Daily Email Delivery
+          <div style={{ marginTop: '28px', fontSize: '12.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <Sparkles size={14} color="#6C5CE7" /> 100% Free • Automated Email Delivery
           </div>
         </div>
       </div>
     );
   }
 
-  // Count total articles loaded
-  const totalArticlesLoaded = previewData.reduce((acc, g) => acc + (g.articles?.length || 0), 0);
-
   // ---------------------------------------------------------------------------
-  // View 2: Main Dashboard with Persistent Navbar & Tabs
+  // View 2: Redesigned Friendly News Dashboard
   // ---------------------------------------------------------------------------
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: '60px' }}>
+    <div style={{ minHeight: '100vh', paddingBottom: '80px' }}>
       {renderToast()}
       
-      {/* Persistent App Header with Tabs and Logout */}
+      {/* 1. VIBRANT PURPLE NAVBAR */}
       <header className="app-header">
-        <div className="brand-title" onClick={() => setActiveTab('topics')}>
-          <span>🌐</span> Universal News Intelligence
+        <div className="brand-container" onClick={() => setActiveTab('topics')}>
+          <div className="brand-icon">
+            <Newspaper size={20} />
+          </div>
+          <div>
+            <div className="brand-title">Universal News</div>
+            <div className="brand-subtitle">AI Intelligence Feed</div>
+          </div>
         </div>
 
-        {/* Tab Switcher in Navbar */}
+        {/* 2. PILL-STYLE TAB SWITCHER */}
         <nav className="nav-tabs">
           <button
             className={`tab-btn ${activeTab === 'topics' ? 'active' : ''}`}
             onClick={() => setActiveTab('topics')}
           >
-            ⚙️ Topics & Schedule
+            <Settings size={16} /> Topics & Schedule
           </button>
           <button
             className={`tab-btn ${activeTab === 'news' ? 'active' : ''}`}
             onClick={() => setActiveTab('news')}
           >
-            📰 News Feed {totalArticlesLoaded > 0 && <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '1px 6px', borderRadius: '99px' }}>{totalArticlesLoaded}</span>}
+            <Zap size={16} /> News Feed 
+            {totalArticlesLoaded > 0 && <span className="tab-count-badge">{totalArticlesLoaded}</span>}
           </button>
         </nav>
 
-        {/* User Info & Logout Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div className="user-badge">
+        {/* User Info & Outlined Logout Button */}
+        <div className="navbar-user-info">
+          <div className="user-email-pill">
             <span>👤</span>
-            <strong>{email}</strong>
+            <span>{email}</span>
           </div>
-          <button onClick={handleLogout} className="btn-logout" title="Logout and switch account">
-            Logout
+          <button onClick={handleLogout} className="btn-navbar-logout">
+            <LogOut size={14} /> Logout
           </button>
         </div>
       </header>
 
-      <main style={{ maxWidth: '1200px', margin: '32px auto', padding: '0 24px' }}>
+      {/* MAIN CONTENT AREA */}
+      <main style={{ maxWidth: '1200px', margin: '36px auto', padding: '0 24px' }}>
         
         {/* =================================================================== */}
-        {/* TAB 1: TOPICS & SCHEDULE SETTINGS                                  */}
+        {/* TAB 1: TOPICS & SCHEDULE (Friendly & Colorful)                      */}
         {/* =================================================================== */}
         {activeTab === 'topics' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '28px' }}>
               
               {/* TOPIC SELECTION CARD */}
-              <div className="glass-panel" style={{ padding: '24px' }}>
+              <div className="card-panel">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '700' }}>1. Your Interest Topics</h2>
-                  <span style={{ fontSize: '12px', color: 'var(--accent-cyan)', fontWeight: '600' }}>
-                    {selectedTopics.length} selected
+                  <h2 style={{ fontSize: '20px', fontWeight: '700' }}>1. Pick Your Channels</h2>
+                  <span style={{ fontSize: '13px', background: 'rgba(108, 92, 231, 0.1)', color: 'var(--primary)', fontWeight: '700', padding: '4px 12px', borderRadius: 'var(--radius-full)' }}>
+                    {selectedTopics.length} Active
                   </span>
                 </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
-                  Select from curated channels or type custom keywords and cities.
+                <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginBottom: '18px' }}>
+                  Choose from popular categories or add any custom city/topic.
                 </p>
 
-                {/* Predefined Chips */}
-                <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>
-                  Predefined Categories
-                </div>
+                {/* Predefined Dynamic Category Chips */}
                 <div className="topic-grid">
                   {PREDEFINED_TOPICS.map((pt) => {
                     const isSelected = selectedTopics.some(t => t.name.toLowerCase() === pt.name.toLowerCase());
+                    const IconComp = pt.icon;
+                    const chipClass = `chip-${pt.category}`;
                     return (
                       <div
                         key={pt.name}
-                        className={`topic-chip ${isSelected ? 'active' : ''}`}
+                        className={`topic-chip ${chipClass} ${isSelected ? 'selected' : ''}`}
                         onClick={() => togglePredefinedTopic(pt)}
                       >
-                        <span>{pt.icon}</span>
+                        <IconComp size={16} />
                         <span>{pt.name}</span>
-                        {isSelected && <span style={{ fontSize: '11px' }}>✓</span>}
+                        {isSelected && <Check size={14} strokeWidth={3} />}
                       </div>
                     );
                   })}
                 </div>
 
                 {/* Custom Topic Form */}
-                <form onSubmit={handleAddCustomTopic} style={{ marginTop: '20px', display: 'flex', gap: '8px' }}>
+                <form onSubmit={handleAddCustomTopic} style={{ marginTop: '24px', display: 'flex', gap: '10px' }}>
                   <input
                     type="text"
-                    className="input-field"
-                    placeholder="Type custom topic (e.g. Noida Tech, EV Cars)..."
+                    className="form-input"
+                    placeholder="Add custom topic (e.g. Noida Tech, EV Cars)..."
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    style={{ flex: 1, padding: '9px 12px', fontSize: '13px' }}
+                    style={{ flex: 1, padding: '10px 16px' }}
                   />
                   <select
-                    className="input-field"
+                    className="form-input"
                     value={customScope}
                     onChange={(e) => setCustomScope(e.target.value)}
-                    style={{ width: '130px', padding: '9px', fontSize: '12px' }}
+                    style={{ width: '130px', padding: '10px', fontSize: '13px' }}
                   >
                     <option value="general">General</option>
                     <option value="local">Local</option>
@@ -460,86 +493,89 @@ export default function App() {
                     <option value="sports">Sports</option>
                     <option value="ai">AI / Tech</option>
                   </select>
-                  <button type="submit" className="btn-secondary" style={{ padding: '8px 14px' }}>
+                  <button type="submit" className="btn-secondary" style={{ padding: '10px 18px' }}>
                     + Add
                   </button>
                 </form>
 
-                {/* Selected Active Chips */}
-                <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginBottom: '8px', fontWeight: '600' }}>
-                    ACTIVE TOPICS QUEUE:
+                {/* Active Topics Queue */}
+                <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    Active Topic Queue:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {selectedTopics.map((t) => (
                       <span
                         key={t.name}
                         style={{
-                          background: 'rgba(56, 189, 248, 0.08)',
-                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          background: 'rgba(108, 92, 231, 0.08)',
+                          border: '1px solid rgba(108, 92, 231, 0.25)',
                           color: 'var(--text-main)',
-                          borderRadius: '6px',
-                          padding: '4px 10px',
-                          fontSize: '12px',
+                          borderRadius: 'var(--radius-full)',
+                          padding: '6px 14px',
+                          fontSize: '12.5px',
+                          fontWeight: '600',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px'
                         }}
                       >
                         <span>{t.name}</span>
-                        <span className="chip-remove" onClick={() => handleRemoveTopic(t.name)}>×</span>
+                        <span className="chip-delete-btn" onClick={() => handleRemoveTopic(t.name)}>
+                          <X size={14} color="#EE5A6F" />
+                        </span>
                       </span>
                     ))}
                   </div>
                 </div>
 
                 {/* Save Topics Button */}
-                <div style={{ marginTop: '20px' }}>
+                <div style={{ marginTop: '24px' }}>
                   <button
                     onClick={handleSaveTopics}
                     disabled={savingTopics}
                     className="btn-primary"
-                    style={{ width: '100%', justifyContent: 'center' }}
+                    style={{ width: '100%' }}
                   >
-                    {savingTopics ? 'Saving Topics...' : 'Save Topic Preferences'}
+                    <Check size={16} /> {savingTopics ? 'Saving...' : 'Save Topic Preferences'}
                   </button>
                 </div>
               </div>
 
               {/* SCHEDULE SETTINGS CARD */}
-              <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div className="card-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700' }}>2. Delivery Schedule</h2>
-                    <span style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: '600' }}>
-                      ● Automated
+                    <h2 style={{ fontSize: '20px', fontWeight: '700' }}>2. Email Schedule</h2>
+                    <span style={{ fontSize: '12px', background: 'rgba(0, 217, 165, 0.12)', color: '#00D9A5', fontWeight: '700', padding: '4px 12px', borderRadius: 'var(--radius-full)' }}>
+                      ● Active
                     </span>
                   </div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '20px' }}>
-                    Set when you want your summarized multi-topic newsletter delivered to your inbox.
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginBottom: '22px' }}>
+                    Set your preferred automated delivery time and frequency.
                   </p>
 
-                  <form onSubmit={handleSaveSchedule} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <form onSubmit={handleSaveSchedule} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                     <div>
-                      <label style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                        DELIVERY TIME (24-Hour format)
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
+                        Delivery Time (24-Hour)
                       </label>
                       <input
                         type="time"
-                        className="input-field"
+                        className="form-input"
                         value={schedTime}
                         onChange={(e) => setSchedTime(e.target.value)}
                         required
                       />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                       <div>
-                        <label style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                          FREQUENCY
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
+                          Frequency
                         </label>
                         <select
-                          className="input-field"
+                          className="form-input"
                           value={schedFreq}
                           onChange={(e) => setSchedFreq(e.target.value)}
                         >
@@ -550,12 +586,12 @@ export default function App() {
                       </div>
 
                       <div>
-                        <label style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
-                          TIMEZONE
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
+                          Timezone
                         </label>
                         <input
                           type="text"
-                          className="input-field"
+                          className="form-input"
                           value={schedTz}
                           onChange={(e) => setSchedTz(e.target.value)}
                         />
@@ -566,27 +602,27 @@ export default function App() {
                       type="submit"
                       disabled={savingSchedule}
                       className="btn-primary"
-                      style={{ marginTop: '8px', justifyContent: 'center' }}
+                      style={{ marginTop: '8px' }}
                     >
-                      {savingSchedule ? 'Updating Schedule...' : 'Save Delivery Schedule'}
+                      <Clock size={16} /> {savingSchedule ? 'Updating...' : 'Save Delivery Schedule'}
                     </button>
                   </form>
                 </div>
 
-                {/* Test Email Now Action */}
-                <div style={{ marginTop: '24px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                {/* Instant Email Test Action */}
+                <div style={{ marginTop: '24px', background: '#F8F8FD', padding: '16px 20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>Instant Dispatch</div>
-                      <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>Send a live test digest to {email} now</div>
+                      <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-main)' }}>Instant Dispatch</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Send test digest to {email}</div>
                     </div>
                     <button
                       onClick={handleTriggerTest}
                       disabled={triggeringDigest}
                       className="btn-secondary"
-                      style={{ fontSize: '12px' }}
+                      style={{ fontSize: '12.5px', padding: '8px 16px' }}
                     >
-                      {triggeringDigest ? 'Sending...' : '⚡ Send Test Email'}
+                      <Send size={14} /> {triggeringDigest ? 'Sending...' : 'Send Now'}
                     </button>
                   </div>
                 </div>
@@ -594,64 +630,64 @@ export default function App() {
               </div>
             </div>
 
-            {/* BIG ACTION BAR: "GET NEWS NOW" */}
-            <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            {/* 4. PROMINENT WARM ACCENT "GET NEWS NOW" CTA */}
+            <div className="card-panel" style={{ background: '#FFFFFF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '2px solid rgba(255, 159, 67, 0.4)', padding: '28px 36px' }}>
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)' }}>
-                  Ready to read today's headlines?
+                <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={22} color="#FF9F43" /> Ready for today's headlines?
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-                  Fetch live articles & LLM summaries on demand across all {selectedTopics.length} selected topics.
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
+                  Fetch live news and generate anti-hype briefings across all {selectedTopics.length} selected channels.
                 </p>
               </div>
               <button
                 onClick={() => fetchPreviewNews(selectedTopics, true)}
                 disabled={loadingPreview}
-                className="btn-primary"
-                style={{ padding: '14px 28px', fontSize: '15px' }}
+                className="btn-warm-cta"
               >
-                {loadingPreview ? 'Fetching Stories...' : '🚀 Get News Now &rarr;'}
+                <Zap size={20} /> {loadingPreview ? 'Fetching Stories...' : 'Get News Now'}
               </button>
             </div>
           </div>
         )}
 
         {/* =================================================================== */}
-        {/* TAB 2: NEWS FEED                                                   */}
+        {/* TAB 2: NEWS FEED (Flipboard / Inshorts Card Layout)                 */}
         {/* =================================================================== */}
         {activeTab === 'news' && (
-          <div className="glass-panel" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+          <div className="card-panel" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-subtle)', paddingBottom: '18px' }}>
               <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '800' }}>
-                  🔥 Your Multi-Topic News Feed
+                <h2 style={{ fontSize: '22px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span>🔥</span> Your Curated News Feed
                 </h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-                  Anti-hype factual summaries curated for your selected topics.
+                <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginTop: '4px' }}>
+                  Anti-hype factual summaries curated per your topic choices.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   onClick={() => fetchPreviewNews(selectedTopics, false)}
                   disabled={loadingPreview}
                   className="btn-secondary"
                 >
-                  {loadingPreview ? 'Refreshing...' : '🔄 Refresh Feed'}
+                  <RefreshCw size={15} className={loadingPreview ? 'animate-spin' : ''} />
+                  {loadingPreview ? 'Refreshing...' : 'Refresh Feed'}
                 </button>
                 <button
                   onClick={() => setActiveTab('topics')}
                   className="btn-secondary"
                 >
-                  ⚙️ Edit Topics
+                  <Settings size={15} /> Edit Channels
                 </button>
               </div>
             </div>
 
-            {/* Loading Skeletons */}
+            {/* 8. SKELETON LOADERS (Matching Card Shape) */}
             {loadingPreview && (
-              <div style={{ marginTop: '24px' }}>
-                <div style={{ color: 'var(--accent-cyan)', fontSize: '13.5px', fontWeight: '600', marginBottom: '16px' }}>
-                  Fetching live feeds and generating AI summaries...
+              <div style={{ marginTop: '28px' }}>
+                <div style={{ color: 'var(--primary)', fontSize: '14px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} /> Gathering live stories and synthesizing anti-hype briefings...
                 </div>
                 <div className="news-grid">
                   {[1, 2, 3, 4, 5, 6].map(i => (
@@ -664,89 +700,114 @@ export default function App() {
             {/* Error State */}
             {!loadingPreview && previewError && (
               <div className="empty-state-box">
-                <div style={{ fontSize: '36px', marginBottom: '12px' }}>⚠️</div>
-                <h3 style={{ fontSize: '17px', fontWeight: '700', marginBottom: '6px' }}>Could not load news feed</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
-                  There was a problem communicating with the news scrapers or summarization engine.
+                <div className="empty-icon-circle" style={{ background: 'rgba(238, 90, 111, 0.1)', color: '#EE5A6F' }}>
+                  <AlertCircle size={36} />
+                </div>
+                <h3 style={{ fontSize: '19px', fontWeight: '700', marginBottom: '8px' }}>Could not load news feed</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '400px', margin: '0 auto 20px auto' }}>
+                  There was a temporary issue communicating with the scrapers or LLM engine.
                 </p>
                 <button onClick={() => fetchPreviewNews(selectedTopics, false)} className="btn-primary">
-                  Try Again
+                  <RefreshCw size={16} /> Try Again
                 </button>
               </div>
             )}
 
-            {/* Empty State before fetching */}
+            {/* 7. EMPTY STATE (Before Fetching) */}
             {!loadingPreview && !previewError && previewData.length === 0 && (
               <div className="empty-state-box">
-                <div style={{ fontSize: '42px', marginBottom: '12px' }}>📡</div>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                <div className="empty-icon-circle">
+                  <Newspaper size={36} />
+                </div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-main)' }}>
                   No news fetched yet
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', maxWidth: '440px', margin: '0 auto 20px auto', lineHeight: '1.6' }}>
-                  Configure your topics and click <strong>"Get News Now"</strong> to generate your personalized live intelligence feed.
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '440px', margin: '0 auto 24px auto', lineHeight: '1.6' }}>
+                  Go to <strong>Topics & Schedule</strong> to choose your channels, then click <strong>"Get News Now"</strong> to see today's top stories.
                 </p>
-                <button onClick={() => fetchPreviewNews(selectedTopics, false)} className="btn-primary">
-                  🚀 Get News Now
+                <button onClick={() => fetchPreviewNews(selectedTopics, false)} className="btn-warm-cta">
+                  <Zap size={18} /> Get News Now
                 </button>
               </div>
             )}
 
-            {/* Grouped Topic News Cards */}
+            {/* 5 & 6. GROUPED TOPIC CARDS & SECTION HEADERS */}
             {!loadingPreview && !previewError && previewData.map(group => {
-              const badgeClass = `badge-${group.scope || 'general'}`;
+              const catColor = getCategoryColor(group.category || group.scope);
               return (
-                <div key={group.topic_name} style={{ marginTop: '28px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                    <span className={`news-badge ${badgeClass}`} style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      {group.scope.toUpperCase()}
+                <div key={group.topic_name}>
+                  {/* Section Header with colored pill badge */}
+                  <div className="news-section-header">
+                    <span className="section-tag-pill" style={{ backgroundColor: catColor }}>
+                      {group.scope || 'GENERAL'}
                     </span>
-                    <h3 style={{ fontSize: '17px', fontWeight: '700' }}>
+                    <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--text-main)' }}>
                       {group.topic_name}
                     </h3>
-                    <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-                      ({group.articles.length} stories)
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                      • {group.articles?.length || 0} Stories
                     </span>
                   </div>
 
                   {group.articles.length === 0 ? (
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                      No recent stories found in the last 48 hours for this topic.
+                    <div style={{ background: '#F8F8FD', padding: '20px', borderRadius: 'var(--radius-lg)', fontSize: '13.5px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                      No recent updates found in the last 48 hours for this channel.
                     </div>
                   ) : (
-                    <div className="news-grid" style={{ marginTop: '0' }}>
+                    <div className="news-grid">
                       {group.articles.map((art, idx) => (
-                        <div key={idx} className="news-card">
+                        <div 
+                          key={idx} 
+                          className="news-card" 
+                          style={{ '--card-accent': catColor }}
+                        >
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600' }}>
-                                {art.source?.toUpperCase()}
+                            {/* Card Top Row: Source badge */}
+                            <div className="card-top-row">
+                              <span className="source-badge">
+                                {art.source?.replace('gnews_', '')?.toUpperCase()}
                               </span>
                             </div>
 
-                            <h4 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '10px', lineHeight: '1.4' }}>
-                              <a href={art.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-main)', textDecoration: 'none' }}>
+                            {/* Card Title */}
+                            <h4 className="card-title">
+                              <a href={art.url} target="_blank" rel="noopener noreferrer">
                                 {art.title}
                               </a>
                             </h4>
 
-                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '14px' }}>
+                            {/* Card Snippet */}
+                            <p className="card-snippet">
                               {art.summary}
                             </p>
 
+                            {/* Takeaways Box */}
                             {art.key_takeaways && art.key_takeaways.length > 0 && (
-                              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', marginBottom: '12px' }}>
-                                <ul style={{ paddingLeft: '16px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                              <div className="takeaways-box">
+                                <ul>
                                   {art.key_takeaways.slice(0, 3).map((pt, pidx) => (
-                                    <li key={pidx} style={{ marginBottom: '4px' }}>{pt.replace(/^[-•*]\s*/, '')}</li>
+                                    <li key={pidx} style={{ marginBottom: '4px' }}>
+                                      {pt.replace(/^[-•*]\s*/, '')}
+                                    </li>
                                   ))}
                                 </ul>
                               </div>
                             )}
                           </div>
 
-                          <div style={{ marginTop: '12px', textAlign: 'right', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                            <a href={art.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: '600' }}>
-                              Read full story &rarr;
+                          {/* Card Footer */}
+                          <div className="card-footer">
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                              {art.published_at ? new Date(art.published_at).toLocaleDateString() : 'Today'}
+                            </span>
+                            <a 
+                              href={art.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="read-more-link"
+                              style={{ color: catColor }}
+                            >
+                              Read Full Story <ExternalLink size={13} />
                             </a>
                           </div>
                         </div>

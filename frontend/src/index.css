@@ -1,32 +1,48 @@
 :root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: #111827;
-  --bg-card: rgba(17, 24, 39, 0.75);
-  --bg-card-hover: rgba(31, 41, 55, 0.85);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(56, 189, 248, 0.4);
+  /* Exact Design Tokens */
+  --primary: #6C5CE7;
+  --primary-light: #A29BFE;
+  --primary-hover: #5b4cc4;
+  --primary-gradient: linear-gradient(135deg, #6C5CE7 0%, #8E78FF 100%);
   
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --secondary: #00D9A5;
+  --secondary-light: #d6f9f0;
   
-  --accent-cyan: #38bdf8;
-  --accent-blue: #3b82f6;
-  --accent-purple: #a855f7;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
+  --warm-accent: #FF9F43;
+  --warm-accent-hover: #f08e30;
+  --warm-accent-gradient: linear-gradient(135deg, #FF9F43 0%, #FF7F24 100%);
   
-  --gradient-brand: linear-gradient(135deg, #38bdf8 0%, #3b82f6 50%, #8b5cf6 100%);
-  --gradient-card: linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%);
+  --bg-app: #F7F7FC;
+  --bg-card: #FFFFFF;
+  
+  --text-main: #1A1A2E;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  
+  --border-subtle: #EBEBFA;
+  --border-card: #F0F0FA;
+  
+  /* Category Colors */
+  --cat-ai: #6C5CE7;
+  --cat-sports: #00D9A5;
+  --cat-local: #FF9F43;
+  --cat-politics: #EE5A6F;
+  --cat-weather: #4ECDC4;
+  --cat-business: #FFD93D;
+  --cat-tech: #A29BFE;
+  --cat-entertainment: #FD79A8;
+  --cat-general: #6C5CE7;
+  
+  --shadow-sm: 0 2px 8px rgba(108, 92, 231, 0.04);
+  --shadow-md: 0 6px 24px -2px rgba(108, 92, 231, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 12px 32px -4px rgba(108, 92, 231, 0.14), 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  --shadow-warm: 0 8px 24px rgba(255, 159, 67, 0.35);
   
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
-  
-  --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 25px rgba(56, 189, 248, 0.15);
 }
 
 * {
@@ -37,133 +53,200 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-app);
   color: var(--text-main);
   min-height: 100vh;
   line-height: 1.5;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
-  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 {
-  font-family: 'Outfit', 'Inter', sans-serif;
-  letter-spacing: -0.02em;
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', 'Inter', sans-serif;
+  color: var(--text-main);
+  letter-spacing: -0.015em;
 }
 
-/* Glassmorphic Container */
-.glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-subtle);
-  transition: all 0.25s ease;
-}
-
-.glass-panel:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-/* App Header */
+/* ========================================================================== */
+/* 1. NAVBAR (Vibrant Purple Gradient)                                       */
+/* ========================================================================== */
 .app-header {
+  background: var(--primary-gradient);
+  padding: 16px 36px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 32px;
-  border-bottom: 1px solid var(--border-color);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(108, 92, 231, 0.25);
   position: sticky;
   top: 0;
-  z-index: 50;
-  background: rgba(11, 15, 25, 0.85);
+  z-index: 100;
 }
 
-.brand-title {
+.brand-container {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 20px;
-  font-weight: 800;
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   cursor: pointer;
 }
 
-/* Tab Switcher in Header */
+.brand-icon {
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* ========================================================================== */
+/* 2. TAB SWITCHER (Pill Style)                                              */
+/* ========================================================================== */
 .nav-tabs {
   display: flex;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.15);
   padding: 4px;
   border-radius: var(--radius-full);
   gap: 4px;
+  backdrop-filter: blur(10px);
 }
 
 .tab-btn {
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 13.5px;
   font-weight: 600;
-  padding: 7px 18px;
+  padding: 8px 20px;
   border-radius: var(--radius-full);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tab-btn:hover {
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .tab-btn.active {
-  background: var(--gradient-brand);
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(56, 189, 248, 0.3);
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 }
 
-.user-badge {
+.tab-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: var(--primary-light);
+  color: #ffffff;
+}
+
+.tab-btn.active .tab-count-badge {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+/* Navbar Right Actions */
+.navbar-user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
+  gap: 14px;
+}
+
+.user-email-pill {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
   font-size: 13px;
-  color: var(--text-muted);
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.user-badge strong {
-  color: var(--text-main);
+.btn-navbar-logout {
+  background: transparent;
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Buttons */
+.btn-navbar-logout:hover {
+  background: #ffffff;
+  color: var(--primary);
+  border-color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================================================== */
+/* 3. CARDS & CONTAINERS (Soft Friendly Light Theme)                         */
+/* ========================================================================== */
+.card-panel {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-card);
+  padding: 28px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-panel:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* ========================================================================== */
+/* 4. BUTTONS & CTAS                                                         */
+/* ========================================================================== */
 .btn-primary {
-  background: var(--gradient-brand);
+  background: var(--primary-gradient);
   color: #ffffff;
   border: none;
+  font-family: 'Poppins', sans-serif;
   font-weight: 600;
   font-size: 14px;
-  padding: 10px 20px;
-  border-radius: var(--radius-md);
+  padding: 12px 24px;
+  border-radius: var(--radius-full);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 14px rgba(108, 92, 231, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(56, 189, 248, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(108, 92, 231, 0.45);
 }
 
 .btn-primary:disabled {
@@ -171,196 +254,387 @@ h1, h2, h3, h4 {
   cursor: not-allowed;
 }
 
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-  font-weight: 500;
-  font-size: 13.5px;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
+/* "GET NEWS NOW" CTA (Warm Accent #FF9F43) */
+.btn-warm-cta {
+  background: var(--warm-accent-gradient);
+  color: #ffffff;
+  border: none;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 16px 32px;
+  border-radius: var(--radius-full);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: var(--shadow-warm);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-warm-cta:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(255, 159, 67, 0.5);
+}
+
+.btn-warm-cta:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: #F0F0FA;
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 10px 20px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   transition: all 0.2s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #E4E4F5;
+  color: var(--primary);
 }
 
-.btn-logout {
-  background: rgba(244, 63, 94, 0.1);
-  color: #fb7185;
-  border: 1px solid rgba(244, 63, 94, 0.2);
-  font-weight: 600;
-  font-size: 12.5px;
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-logout:hover {
-  background: rgba(244, 63, 94, 0.2);
-  border-color: rgba(244, 63, 94, 0.4);
-}
-
-/* Inputs & Form Elements */
-.input-field {
-  width: 100%;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  color: var(--text-main);
-  padding: 12px 16px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.input-field:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
-}
-
-/* Topic Chips */
+/* ========================================================================== */
+/* 5. TOPIC CHIPS (Dynamic Colors & Pop Animation)                           */
+/* ========================================================================== */
 .topic-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 12px;
+  margin-top: 16px;
 }
 
 .topic-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 10px 18px;
   border-radius: var(--radius-full);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   user-select: none;
 }
 
 .topic-chip:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px) scale(1.03);
 }
 
-.topic-chip.active {
-  background: rgba(56, 189, 248, 0.12);
-  border-color: var(--accent-cyan);
-  color: #38bdf8;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+.topic-chip.selected {
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  transform: scale(1.04);
 }
 
-.chip-remove {
+/* Category Specific Chip Styles */
+.chip-ai { border-color: var(--cat-ai); color: var(--cat-ai); background: rgba(108, 92, 231, 0.08); }
+.chip-ai.selected { background: var(--cat-ai); }
+
+.chip-sports { border-color: var(--cat-sports); color: var(--cat-sports); background: rgba(0, 217, 165, 0.08); }
+.chip-sports.selected { background: var(--cat-sports); }
+
+.chip-local { border-color: var(--cat-local); color: var(--cat-local); background: rgba(255, 159, 67, 0.08); }
+.chip-local.selected { background: var(--cat-local); }
+
+.chip-politics, .chip-national { border-color: var(--cat-politics); color: var(--cat-politics); background: rgba(238, 90, 111, 0.08); }
+.chip-politics.selected, .chip-national.selected { background: var(--cat-politics); }
+
+.chip-weather { border-color: var(--cat-weather); color: #0284c7; background: rgba(78, 205, 196, 0.1); }
+.chip-weather.selected { background: var(--cat-weather); color: #ffffff !important; }
+
+.chip-business { border-color: #f59e0b; color: #b45309; background: rgba(255, 217, 61, 0.15); }
+.chip-business.selected { background: var(--cat-business); color: #1A1A2E !important; }
+
+.chip-tech { border-color: var(--cat-tech); color: var(--cat-ai); background: rgba(162, 155, 254, 0.12); }
+.chip-tech.selected { background: var(--cat-tech); }
+
+.chip-entertainment { border-color: var(--cat-entertainment); color: var(--cat-entertainment); background: rgba(253, 121, 168, 0.1); }
+.chip-entertainment.selected { background: var(--cat-entertainment); }
+
+.chip-general, .chip-international { border-color: var(--cat-general); color: var(--cat-general); background: rgba(108, 92, 231, 0.08); }
+.chip-general.selected, .chip-international.selected { background: var(--cat-general); }
+
+.chip-delete-btn {
   cursor: pointer;
-  opacity: 0.7;
-  font-size: 14px;
+  opacity: 0.75;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
 }
 
-.chip-remove:hover {
+.chip-delete-btn:hover {
   opacity: 1;
-  color: var(--accent-rose);
 }
 
-/* News Cards Grid */
+/* ========================================================================== */
+/* 6. NEWS CARDS & SECTION HEADERS (Inshorts/Flipboard Style)                */
+/* ========================================================================== */
+.news-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 32px 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-subtle);
+}
+
+.section-tag-pill {
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .news-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 18px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
 }
 
 .news-card {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 18px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-card);
+  padding: 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.news-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: var(--card-accent, var(--primary));
 }
 
 .news-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-active);
-  box-shadow: var(--shadow-glow);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--shadow-lg);
 }
 
-.news-badge {
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.source-badge {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(108, 92, 231, 0.08);
+  color: var(--card-accent, var(--primary));
+}
+
+.card-title {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.45;
   margin-bottom: 10px;
 }
 
-.badge-ai { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-.badge-local { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.badge-national { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-.badge-international { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
-.badge-sports { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
-.badge-weather { background: rgba(14, 165, 233, 0.15); color: #38bdf8; }
-.badge-general { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+.card-title a {
+  color: var(--text-main);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
 
-/* Skeleton Loading Animation */
+.card-title a:hover {
+  color: var(--primary);
+}
+
+.card-snippet {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.takeaways-box {
+  background: #F9F9FD;
+  border-left: 3px solid var(--card-accent, var(--primary));
+  padding: 12px 14px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  margin-bottom: 16px;
+}
+
+.takeaways-box ul {
+  padding-left: 16px;
+  font-size: 12.5px;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.read-more-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: gap 0.2s ease;
+}
+
+.read-more-link:hover {
+  gap: 8px;
+}
+
+/* ========================================================================== */
+/* 7. FORM INPUTS & SELECTION                                                */
+/* ========================================================================== */
+.form-input {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+}
+
+/* ========================================================================== */
+/* 8. SKELETON LOADERS & EMPTY STATES                                        */
+/* ========================================================================== */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background: linear-gradient(90deg, #F0F0FA 25%, #E5E5F5 50%, #F0F0FA 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: var(--radius-sm);
-}
-
-.skeleton-text {
-  height: 14px;
-  margin-bottom: 8px;
-}
-
-.skeleton-title {
-  height: 20px;
-  margin-bottom: 12px;
-}
-
-.skeleton-card {
-  height: 180px;
   border-radius: var(--radius-md);
 }
 
-/* Empty State Container */
+.skeleton-card {
+  height: 220px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  background-color: #FFFFFF;
+}
+
 .empty-state-box {
   text-align: center;
   padding: 64px 24px;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px dashed var(--border-color);
-  border-radius: var(--radius-lg);
+  background: #FFFFFF;
+  border: 2px dashed var(--border-subtle);
+  border-radius: var(--radius-xl);
   margin-top: 24px;
+  box-shadow: var(--shadow-sm);
 }
 
-@media (max-width: 768px) {
+.empty-icon-circle {
+  width: 72px;
+  height: 72px;
+  background: rgba(108, 92, 231, 0.08);
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+
+/* ========================================================================== */
+/* 9. TOAST NOTIFICATIONS (Top-Right Slide In)                               */
+/* ========================================================================== */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast-pill {
+  padding: 14px 22px;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 14px;
+  color: #ffffff;
+  box-shadow: var(--shadow-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-success { background: #00D9A5; }
+.toast-error { background: #EE5A6F; }
+.toast-info { background: #6C5CE7; }
+
+/* Responsive adjustments */
+@media (max-width: 840px) {
   .app-header {
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
+    gap: 16px;
+    padding: 18px 20px;
   }
   .nav-tabs {
     width: 100%;
