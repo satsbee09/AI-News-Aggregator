@@ -1,0 +1,39 @@
+name: Daily AI News Intelligence Digest
+
+on:
+  # Scheduled daily run at 12:00 UTC (5:30 PM IST)
+  schedule:
+    - cron: '0 12 * * *'
+  
+  # Allows you to manually trigger the workflow anytime from the GitHub UI
+  workflow_dispatch:
+
+jobs:
+  run-digest-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Daily Pipeline
+        env:
+          ENVIRONMENT: production
+          DATABASE_URL: sqlite:///data/news.db
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: |
+          uv run python main.py
