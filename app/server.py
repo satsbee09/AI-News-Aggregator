@@ -42,10 +42,13 @@ app.add_middleware(
 from app.api.routes.users import router as users_router
 from app.api.routes.news import router as news_router
 from app.api.routes.schedule import router as schedule_router
+from app.api.routes.internal import router as internal_router
 
 app.include_router(users_router)
 app.include_router(news_router)
 app.include_router(schedule_router)
+app.include_router(internal_router)
+
 
 @app.get("/api/health")
 async def health_check():

@@ -11,6 +11,12 @@ wheels/
 .env
 data/
 *.db
-*.sqlite3
-__pycache__/
-.pytest_cache/
+# Node.js
+node_modules/
+backend-express/node_modules/
+frontend/node_modules/
+frontend/dist/
+backend-express/.env
+
+# Temporary scratch
+scratch/

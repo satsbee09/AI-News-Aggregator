@@ -42,20 +42,21 @@ def build_scrapers_for_user_topics(topics: List[Dict[str, Any]]) -> List[BaseScr
 
     return scrapers
 
-async def run_user_pipeline(email: str, dry_run: bool = False) -> Dict[str, Any]:
+async def run_user_pipeline(email: str, topics: Optional[List[Dict[str, Any]]] = None, dry_run: bool = False) -> Dict[str, Any]:
     """Runs the full intelligence pipeline parameterized for a specific user's topics and destination email."""
     print(f"\n=================================================================")
     print(f"[PIPELINE TRIGGER] Running personalized pipeline for: {email}")
     print(f"=================================================================")
     
-    users_col = get_users_collection()
-    user_doc = await users_col.find_one({"email": email.lower().strip()})
-    
-    if not user_doc:
-        print(f"[ERROR] User '{email}' not found.")
-        return {"status": "error", "message": f"User '{email}' not found."}
+    if not topics:
+        try:
+            users_col = get_users_collection()
+            user_doc = await users_col.find_one({"email": email.lower().strip()})
+            if user_doc:
+                topics = user_doc.get("topics", [])
+        except Exception as e:
+            print(f"[WARN] Error fetching user doc: {e}")
         
-    topics = user_doc.get("topics", [])
     if not topics:
         print(f"[WARN] User '{email}' has no selected topics.")
         return {"status": "error", "message": "No topics configured for user."}

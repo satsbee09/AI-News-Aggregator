@@ -129,7 +129,8 @@ def run_daily_pipeline(
     print(f"\n   --- Today's Top {len(top_stories)} Selected Stories ---")
     for rank, (digest, score, reason) in enumerate(top_stories, start=1):
         article = digest.get("article", {})
-        print(f"   #{rank} [Score: {score}] [{digest.get('category', '').upper()}] {article.get('title', '')[:50]}...")
+        safe_title = article.get('title', '').encode('ascii', 'replace').decode('ascii')[:50]
+        print(f"   #{rank} [Score: {score}] [{digest.get('category', '').upper()}] {safe_title}...")
 
     # 5. Email Packaging & Delivery Layer
     print(f"\n[STEP 4/4] Packaging & Delivering Categorized Email Digest (Dry Run: {dry_run})...")

@@ -25,7 +25,8 @@ def process_unprocessed_digests(repo: Optional[MongoRepository] = None, limit: i
         topic_name = article.get("topic_name", "General News")
         article_id = article["_id"]
 
-        print(f"   [AI] Summarizing [{source}]: {title[:45]}...")
+        safe_title = title.encode('ascii', 'replace').decode('ascii')[:45]
+        print(f"   [AI] Summarizing [{source}]: {safe_title}...")
         try:
             # Special fast-path for weather reports
             if source == "open_meteo":

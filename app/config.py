@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     EMAIL_USER: str = ""
     EMAIL_APP_PASSWORD: str = ""
     RECIPIENT_EMAIL: str = ""
+    
+    # Internal Authentication Secret (Express <-> FastAPI)
+    INTERNAL_API_SECRET: str = "c8f5e29a4b7d16038e12f0c9751e3a649b802e5f1d7a3c9e624b80f1e5d7c3a9"
 
     model_config = SettingsConfigDict(
         env_file=".env",

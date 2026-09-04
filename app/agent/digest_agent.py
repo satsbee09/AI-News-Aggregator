@@ -37,13 +37,18 @@ Guidelines:
 Source: {source}
 
 Content:
-{raw_content[:5000]}
+{raw_content[:2500]}
 
 Generate the JSON summary now:"""
 
         try:
             raw_response = self.llm.generate(system_prompt=system_prompt, user_prompt=user_prompt, json_mode=True)
-            data = json.loads(raw_response)
+            import re
+            cleaned = raw_response.strip()
+            match = re.search(r'\{[\s\S]*\}', cleaned)
+            if match:
+                cleaned = match.group(0)
+            data = json.loads(cleaned)
             return DigestOutput(**data)
         except Exception as e:
             print(f"      [WARN] Digest LLM generation failed ({e}). Using deterministic content extractor fallback.")
