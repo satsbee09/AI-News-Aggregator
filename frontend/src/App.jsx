@@ -1193,7 +1193,7 @@ export default function App() {
                                           </span>
                                         )}
                                       </div>
-                                      <div style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-main)', lineHeight: '1.35', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                      <div style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-main)', lineHeight: '1.35', display: '-webkit-box', WebkitLineClamp: 2, lineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                         {src.title}
                                       </div>
                                     </div>
