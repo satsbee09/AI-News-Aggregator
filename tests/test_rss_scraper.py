@@ -1,12 +1,11 @@
-from app.database.connection import init_db, SessionLocal
-from app.database.repository import Repository
+from app.database.mongo import init_mongo_db
+from app.database.repository import MongoRepository
 from app.scrapers.rss_scraper import RssScraper
 
 def run_test():
-    print("1. Initializing Database...")
-    init_db()
-    session = SessionLocal()
-    repo = Repository(session)
+    print("1. Initializing MongoDB...")
+    init_mongo_db()
+    repo = MongoRepository()
 
     print("\n2. Fetching recent AI RSS articles (last 72 hours)...")
     scraper = RssScraper()
@@ -21,7 +20,7 @@ def run_test():
 
     assert len(articles) > 0, "Failed: Could not scrape any articles from RSS feeds."
 
-    print("\n3. Saving scraped articles to SQLite database...")
+    print("\n3. Saving scraped articles to MongoDB database...")
     saved_count = 0
     duplicate_count = 0
     for a in articles:
@@ -29,6 +28,8 @@ def run_test():
             title=a.title,
             url=a.url,
             source=a.source,
+            category=getattr(a, "category", "ai"),
+            topic_name=getattr(a, "topic_name", "AI Research & Tech"),
             raw_content=a.raw_content,
             published_at=a.published_at
         )
@@ -44,8 +45,7 @@ def run_test():
     unprocessed = repo.get_unprocessed_articles()
     print(f"   [SUCCESS] Total unprocessed articles awaiting LLM summary: {len(unprocessed)}")
 
-    session.close()
-    print("\n🎉 Phase 2 RSS Scraper test passed completely!")
+    print("\n[SUCCESS] Phase 2 RSS Scraper test passed completely!")
 
 if __name__ == "__main__":
     run_test()

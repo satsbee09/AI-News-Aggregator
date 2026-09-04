@@ -20,9 +20,14 @@ class YouTubeScraper(BaseScraper):
     def _get_transcript(self, video_id: str, fallback_description: str) -> str:
         """Fetches English transcript or falls back to video description."""
         try:
-            transcript_items = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "en-US", "en-GB"])
-            full_text = " ".join([item["text"] for item in transcript_items])
-            # Truncate overly long transcripts if necessary (e.g. 15,000 characters)
+            if hasattr(YouTubeTranscriptApi, "get_transcript"):
+                transcript_items = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "en-US", "en-GB"])
+                full_text = " ".join([item["text"] for item in transcript_items])
+            else:
+                api = YouTubeTranscriptApi()
+                t = api.fetch(video_id, languages=["en", "en-US", "en-GB"])
+                full_text = " ".join([s.text for s in t.snippets])
+
             return full_text[:15000] if full_text else fallback_description
         except (TranscriptsDisabled, NoTranscriptFound):
             print(f"      [INFO] Captions unavailable for video {video_id}. Using description.")
@@ -72,6 +77,8 @@ class YouTubeScraper(BaseScraper):
                             title=title,
                             url=url,
                             source=f"youtube_{channel_name.lower().replace(' ', '_')}",
+                            category="ai",
+                            topic_name="Frontier AI & LLMs",
                             raw_content=content,
                             published_at=published_at
                         )

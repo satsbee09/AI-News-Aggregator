@@ -10,8 +10,10 @@ dependencies = [
     "groq>=1.7.0",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
+    "pymongo>=4.18.0",
     "pytest>=9.1.1",
     "python-dotenv>=1.2.3",
+    "requests>=2.34.2",
     "sqlalchemy>=2.0.52",
     "youtube-transcript-api>=1.2.4",
 ]

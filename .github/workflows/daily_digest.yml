@@ -30,7 +30,7 @@ jobs:
       - name: Run Daily Pipeline
         env:
           ENVIRONMENT: production
-          DATABASE_URL: sqlite:///data/news.db
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}

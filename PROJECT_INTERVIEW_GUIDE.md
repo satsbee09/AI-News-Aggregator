@@ -162,6 +162,14 @@ This living guide contains everything you need to deeply understand the project 
   - **Secure Secrets Injection:** Securely loads `GROQ_API_KEY`, `EMAIL_USER`, and `EMAIL_APP_PASSWORD` from encrypted repository secrets directly into the runner environment.
   - **Manual Trigger Support (`workflow_dispatch`):** Allows instant on-demand pipeline execution directly from the GitHub web UI for testing and verification.
 
+### Phase 9: Universal Multi-Topic Engine & MongoDB Upgrade
+* **Files Built / Upgraded:** `app/database/mongo.py`, `app/scrapers/google_news_scraper.py`, `app/scrapers/weather_scraper.py`, `app/services/pipeline_service.py`, `app/services/email_service.py`.
+* **Key Code Explained:**
+  - **MongoDB Persistence (`PyMongo`):** Replaced SQLite with MongoDB Atlas, establishing indexed collections (`topics`, `articles`, `digests`, `sent_logs`) and `$lookup` aggregations.
+  - **Dynamic Topic-Driven Scrapers:** Constructed runtime scrapers based on user `topics` stored in MongoDB, combining Google News RSS (dynamic queries & locales) with Open-Meteo weather forecasts.
+  - **Weighted Multi-Topic AI Curator:** The Curator Agent computes weighted relevance scores (`score * topic_weight`) across AI, Local, National, International, Sports, and Weather.
+  - **Sectioned HTML Newsletter:** Groups top daily stories into rich visual sections with category badges (🤖 AI, 📍 Local, 🇮🇳 National, 🌍 World, 🏏 Sports, 🌦️ Weather).
+
 ---
 
 ## 7. Top Interview Questions & How to Answer

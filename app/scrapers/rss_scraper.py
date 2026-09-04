@@ -66,6 +66,8 @@ class RssScraper(BaseScraper):
                             title=title,
                             url=url,
                             source=source_name,
+                            category="ai",
+                            topic_name="Frontier AI & LLMs",
                             raw_content=cleaned_content,
                             published_at=published_at
                         )

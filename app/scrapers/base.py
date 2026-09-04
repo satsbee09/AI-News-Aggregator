@@ -9,6 +9,8 @@ class ScrapedArticle:
     url: str
     source: str
     raw_content: str
+    category: str = "general"
+    topic_name: str = "General News"
     published_at: Optional[datetime] = None
 
 class BaseScraper(ABC):

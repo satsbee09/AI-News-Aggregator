@@ -1,6 +1,11 @@
+import sys
 import argparse
 from app.config import settings
 from app.services.pipeline_service import run_daily_pipeline
+
+# Ensure UTF-8 output encoding across Windows terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 def main():
     parser = argparse.ArgumentParser(description="AI News Aggregator & Daily Digest Pipeline")

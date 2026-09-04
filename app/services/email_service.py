@@ -1,66 +1,104 @@
 import os
 import smtplib
+from collections import defaultdict
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import List, Tuple
-from sqlalchemy.orm import Session
+from typing import List, Tuple, Dict, Any, Optional
 from app.config import settings
-from app.database.models import Digest
-from app.database.repository import Repository
+from app.database.repository import MongoRepository
 from app.profiles.user_profile import UserProfile, DEFAULT_USER_PROFILE
 
-def build_email_html(ranked_items: List[Tuple[Digest, int, str]], profile: UserProfile = DEFAULT_USER_PROFILE) -> str:
-    """Renders a modern, responsive HTML email template for the daily digest."""
+CATEGORY_ICONS = {
+    "ai": ("🤖", "Frontier AI & Technology", "#eff6ff", "#2563eb"),
+    "local": ("📍", "Local News & Community", "#fef3c7", "#d97706"),
+    "national": ("🇮🇳", "National News & Politics", "#ecfdf5", "#059669"),
+    "international": ("🌍", "International Geopolitics", "#f3e8ff", "#7c3aed"),
+    "sports": ("🏏", "Sports & Cricket", "#fff1f2", "#e11d48"),
+    "weather": ("🌦️", "Weather & Forecast", "#e0f2fe", "#0284c7"),
+    "general": ("📰", "General Intelligence", "#f1f5f9", "#475569")
+}
+
+def build_email_html(ranked_items: List[Tuple[Dict[str, Any], float, str]], profile: UserProfile = DEFAULT_USER_PROFILE) -> str:
+    """Renders a modern, categorized HTML email newsletter grouped by topic/category."""
     date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
     
-    # Build HTML cards for each article
-    cards_html = ""
-    for rank, (digest, score, reason) in enumerate(ranked_items, start=1):
-        # Format takeaways into HTML list items
-        takeaways_list = "".join([f"<li style='margin-bottom: 6px;'>{line.lstrip('-• ')}</li>" for line in digest.key_takeaways.split("\n") if line.strip()])
+    # 1. Group ranked items by category
+    grouped_articles = defaultdict(list)
+    for digest, score, reason in ranked_items:
+        cat = digest.get("category", "general").lower()
+        grouped_articles[cat].append((digest, score, reason))
+
+    sections_html = ""
+
+    for cat, items in grouped_articles.items():
+        emoji, cat_title, bg_color, text_color = CATEGORY_ICONS.get(cat, ("📌", cat.capitalize(), "#f1f5f9", "#334155"))
         
-        cards_html += f"""
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span style="background: #eff6ff; color: #2563eb; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 6px;">
-                    {digest.category}
-                </span>
-                <span style="background: #f0fdf4; color: #16a34a; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 6px;">
-                    Score: {score}/10
-                </span>
-            </div>
-            
-            <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; line-height: 1.4;">
-                <a href="{digest.article.url}" style="color: #0f172a; text-decoration: none;" target="_blank">
-                    #{rank}. {digest.article.title}
-                </a>
-            </h2>
-            
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
-                Source: <strong>{digest.article.source.upper()}</strong>
-            </div>
+        cards_html = ""
+        for digest, score, reason in items:
+            article = digest.get("article", {})
+            title = article.get("title", "Untitled")
+            url = article.get("url", "#")
+            source = article.get("source", "unknown")
+            topic_name = digest.get("topic_name", cat_title)
+            summary = digest.get("summary", "")
+            takeaways = digest.get("key_takeaways", "")
 
-            <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
-                {digest.summary}
-            </p>
+            takeaways_list = "".join([f"<li style='margin-bottom: 6px;'>{line.lstrip('-• ')}</li>" for line in takeaways.split("\n") if line.strip()])
 
-            <div style="background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
-                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 8px;">Key Takeaways</div>
-                <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #334155; line-height: 1.5;">
-                    {takeaways_list}
-                </ul>
-            </div>
+            cards_html += f"""
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="background: {bg_color}; color: {text_color}; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 6px;">
+                        {topic_name}
+                    </span>
+                    <span style="background: #f0fdf4; color: #16a34a; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px;">
+                        Relevance: {score}/10
+                    </span>
+                </div>
+                
+                <h3 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 6px 0; line-height: 1.4;">
+                    <a href="{url}" style="color: #0f172a; text-decoration: none;" target="_blank">
+                        {title}
+                    </a>
+                </h3>
+                
+                <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">
+                    Source: <strong>{source.upper()}</strong>
+                </div>
 
-            <div style="font-size: 12px; color: #64748b; font-style: italic;">
-                💡 <strong>Curator Note:</strong> {reason}
+                <p style="font-size: 13.5px; line-height: 1.6; color: #334155; margin: 0 0 14px 0;">
+                    {summary}
+                </p>
+
+                <div style="background: #f8fafc; border-left: 3px solid {text_color}; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 12px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">Key Highlights</div>
+                    <ul style="margin: 0; padding-left: 16px; font-size: 12.5px; color: #334155; line-height: 1.45;">
+                        {takeaways_list}
+                    </ul>
+                </div>
+
+                <div style="font-size: 11.5px; color: #64748b; font-style: italic;">
+                    💡 <strong>Analysis:</strong> {reason}
+                </div>
+                
+                <div style="margin-top: 12px; text-align: right;">
+                    <a href="{url}" style="display: inline-block; font-size: 12px; font-weight: 600; color: #2563eb; text-decoration: none;" target="_blank">
+                        Read full story &rarr;
+                    </a>
+                </div>
             </div>
-            
-            <div style="margin-top: 14px; text-align: right;">
-                <a href="{digest.article.url}" style="display: inline-block; font-size: 12px; font-weight: 600; color: #2563eb; text-decoration: none;" target="_blank">
-                    Read full source &rarr;
-                </a>
+            """
+
+        sections_html += f"""
+        <div style="margin-bottom: 28px;">
+            <div style="display: flex; align-items: center; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+                <span style="font-size: 20px; margin-right: 8px;">{emoji}</span>
+                <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">
+                    {cat_title}
+                </h2>
             </div>
+            {cards_html}
         </div>
         """
 
@@ -70,30 +108,30 @@ def build_email_html(ranked_items: List[Tuple[Digest, int, str]], profile: UserP
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Daily AI Intelligence Digest</title>
+        <title>Daily Multi-Topic Intelligence Digest</title>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-        <div style="max-width: 680px; margin: 30px auto; background-color: transparent; padding: 0 20px;">
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; color: #ffffff; text-align: center; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
-                <div style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #38bdf8; margin-bottom: 6px;">
-                    AI News Intelligence
+    <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="max-width: 680px; margin: 24px auto; background-color: transparent; padding: 0 16px;">
+            <!-- Header Banner -->
+            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 28px; color: #ffffff; text-align: center; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.06);">
+                <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #38bdf8; margin-bottom: 6px;">
+                    Universal Intelligence Briefing
                 </div>
-                <h1 style="font-size: 26px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px;">
-                    Daily Curated Digest
+                <h1 style="font-size: 24px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px;">
+                    Daily Curated News Digest
                 </h1>
-                <div style="font-size: 13px; color: #94a3b8;">
+                <div style="font-size: 12.5px; color: #94a3b8;">
                     {date_str} • Curated for <strong>{profile.name}</strong>
                 </div>
             </div>
 
-            <!-- Articles Container -->
-            {cards_html}
+            <!-- Grouped Sections -->
+            {sections_html}
 
             <!-- Footer -->
-            <div style="text-align: center; padding: 24px; font-size: 12px; color: #94a3b8;">
-                <p style="margin: 0 0 6px 0;">Automated AI News Aggregator • Built with Groq & SQLite</p>
-                <p style="margin: 0;">Zero tracking, zero clickbait, 100% technical insights.</p>
+            <div style="text-align: center; padding: 20px; font-size: 11.5px; color: #94a3b8;">
+                <p style="margin: 0 0 4px 0;">Universal News Intelligence Pipeline • Powered by MongoDB & Groq LLM</p>
+                <p style="margin: 0;">Multi-topic curation across Local, National, Global, Tech & Weather.</p>
             </div>
         </div>
     </body>
@@ -103,17 +141,17 @@ def build_email_html(ranked_items: List[Tuple[Digest, int, str]], profile: UserP
 
 
 def send_digest_email(
-    session: Session,
-    ranked_items: List[Tuple[Digest, int, str]],
+    ranked_items: List[Tuple[Dict[str, Any], float, str]],
+    repo: Optional[MongoRepository] = None,
     recipient: str = "",
     dry_run: bool = False
 ) -> bool:
-    """Builds and delivers the email digest via Gmail SMTP, logging sent IDs to DB."""
+    """Builds and delivers the categorized email digest via Gmail SMTP, logging sent IDs to MongoDB."""
     if not ranked_items:
         print("   [INFO] No articles to send in email.")
         return False
 
-    repo = Repository(session)
+    repo = repo or MongoRepository()
     recipient = recipient or settings.RECIPIENT_EMAIL or settings.EMAIL_USER
     html_content = build_email_html(ranked_items)
 
@@ -133,18 +171,17 @@ def send_digest_email(
         else:
             print("   [INFO] Dry-run enabled. Skipping SMTP dispatch.")
         
-        # Log sent status
         for digest, _, _ in ranked_items:
-            repo.log_sent_digest(digest.id, recipient=recipient or "dry_run_user@local")
+            repo.log_sent_digest(digest["_id"], recipient=recipient or "dry_run_user@local")
         return True
 
     # 2. Dispatch via Gmail SMTP
     date_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
-    subject = f"Daily AI Intelligence Digest — {date_str}"
+    subject = f"Daily Intelligence Digest — {date_str}"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = f"AI News Digest <{settings.EMAIL_USER}>"
+    msg["From"] = f"News Digest <{settings.EMAIL_USER}>"
     msg["To"] = recipient
 
     # Attach HTML
@@ -160,9 +197,9 @@ def send_digest_email(
 
         print(f"   [SUCCESS] Email successfully delivered to {recipient}!")
 
-        # 3. Log sent digests to prevent re-sending
+        # 3. Log sent digests in MongoDB to prevent re-sending
         for digest, _, _ in ranked_items:
-            repo.log_sent_digest(digest.id, recipient=recipient)
+            repo.log_sent_digest(digest["_id"], recipient=recipient)
 
         return True
     except Exception as e:

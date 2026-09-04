@@ -2,7 +2,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
-    DATABASE_URL: str = "sqlite:///data/news.db"
+    
+    # MongoDB Settings (Local or MongoDB Atlas connection string)
+    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "news_aggregator"
     
     # LLM Settings
     GROQ_API_KEY: str = ""
