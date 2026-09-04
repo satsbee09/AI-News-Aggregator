@@ -81,13 +81,14 @@ router.put(
   }
 );
 
-// 4. PUT /api/users/:email/schedule (Update Schedule Object)
+// 4. PUT /api/users/:email/schedule (Update Schedule Object & Subscription State)
 router.put(
   '/:email/schedule',
   [
     body('time').optional().isString(),
     body('frequency').optional().isIn(['daily', 'every_6_hours', 'every_12_hours']),
-    body('timezone').optional().isString()
+    body('timezone').optional().isString(),
+    body('enabled').optional().isBoolean()
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -96,12 +97,16 @@ router.put(
     }
 
     const email = req.params.email.toLowerCase().trim();
-    const { time, frequency, timezone } = req.body;
+    const { time, frequency, timezone, enabled } = req.body;
 
     const scheduleUpdate = {};
-    if (time) scheduleUpdate['schedule.time'] = time;
-    if (frequency) scheduleUpdate['schedule.frequency'] = frequency;
-    if (timezone) scheduleUpdate['schedule.timezone'] = timezone;
+    if (time !== undefined) scheduleUpdate['schedule.time'] = time;
+    if (frequency !== undefined) scheduleUpdate['schedule.frequency'] = frequency;
+    if (timezone !== undefined) scheduleUpdate['schedule.timezone'] = timezone;
+    if (enabled !== undefined) {
+      scheduleUpdate['schedule.enabled'] = enabled;
+      scheduleUpdate['isSubscribed'] = enabled;
+    }
 
     try {
       const user = await User.findOneAndUpdate(
@@ -122,9 +127,55 @@ router.put(
   }
 );
 
+// 5. POST /api/users/:email/unsubscribe (Quick 1-click Unsubscribe / Pause)
+router.post('/:email/unsubscribe', async (req, res) => {
+  const email = req.params.email.toLowerCase().trim();
+  try {
+    const user = await User.findOneAndUpdate(
+      { email },
+      { $set: { 'schedule.enabled': false, isSubscribed: false } },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: `User with email '${email}' not found` });
+    }
+
+    console.log(`[EXPRESS USER] User '${email}' successfully unsubscribed/paused.`);
+    return res.status(200).json({
+      message: 'Successfully unsubscribed from automated email digests.',
+      user
+    });
+  } catch (err) {
+    console.error(`[EXPRESS USER ERROR] POST /api/users/:email/unsubscribe: ${err.message}`);
+    return res.status(500).json({ error: 'Failed to unsubscribe user' });
+  }
+});
+
+// 6. DELETE /api/users/:email (Permanently Delete User Account & Preferences)
+router.delete('/:email', async (req, res) => {
+  const email = req.params.email.toLowerCase().trim();
+  try {
+    const deletedUser = await User.findOneAndDelete({ email });
+    if (!deletedUser) {
+      return res.status(404).json({ error: `User with email '${email}' not found` });
+    }
+
+    console.log(`[EXPRESS USER] Successfully deleted user account and preferences for '${email}'.`);
+    return res.status(200).json({
+      status: 'success',
+      message: `Account for '${email}' and all associated preferences have been permanently deleted.`,
+      email
+    });
+  } catch (err) {
+    console.error(`[EXPRESS USER ERROR] DELETE /api/users/:email: ${err.message}`);
+    return res.status(500).json({ error: 'Failed to delete user account' });
+  }
+});
+
 const fastapiClient = require('../services/fastapiClient');
 
-// 5. POST /api/users/:email/trigger (Manual Instant Digest Trigger)
+// 7. POST /api/users/:email/trigger (Manual Instant Digest Trigger)
 router.post('/:email/trigger', async (req, res) => {
   const email = req.params.email.toLowerCase().trim();
   const dryRun = req.query.dry_run === 'true';

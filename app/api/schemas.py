@@ -19,6 +19,7 @@ class ScheduleSettings(BaseModel):
     time: str = Field(default="07:30", description="Delivery time in HH:MM (24-hour format)")
     frequency: Literal["daily", "every_6_hours", "every_12_hours"] = "daily"
     timezone: str = Field(default="Asia/Kolkata", description="IANA timezone name")
+    enabled: bool = Field(default=True, description="Whether automated email digests are active")
 
 class UserCreateRequest(BaseModel):
     email: EmailStr
@@ -28,6 +29,7 @@ class UserTopicsUpdateRequest(BaseModel):
 
 class UserResponse(BaseModel):
     email: str
+    is_subscribed: bool = True
     topics: List[TopicItem] = []
     schedule: ScheduleSettings = Field(default_factory=ScheduleSettings)
     created_at: Optional[datetime] = None

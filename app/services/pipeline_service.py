@@ -7,7 +7,9 @@ from app.scrapers.base import BaseScraper
 from app.scrapers.rss_scraper import RssScraper
 from app.scrapers.youtube_scraper import YouTubeScraper
 from app.scrapers.google_news_scraper import GoogleNewsScraper
+from app.scrapers.brave_search_scraper import BraveSearchScraper
 from app.scrapers.weather_scraper import WeatherScraper
+from app.config import settings
 from app.services.process_digest import process_unprocessed_digests
 from app.agent.curator_agent import CuratorAgent
 from app.services.email_service import send_digest_email
@@ -31,7 +33,7 @@ def build_dynamic_scrapers(topics: List[dict]) -> List[BaseScraper]:
             city = location.split(",")[0].strip() if location else query
             scrapers.append(WeatherScraper(city_name=city or "Delhi", topic_name=topic_name))
         else:
-            # Build Google News Scraper for this topic
+            # 1. Google News / Google Search Scraper for this topic
             scrapers.append(
                 GoogleNewsScraper(
                     query=query,
@@ -39,6 +41,15 @@ def build_dynamic_scrapers(topics: List[dict]) -> List[BaseScraper]:
                     category=category
                 )
             )
+            # 2. Brave Search Scraper (if key active)
+            if settings.BRAVE_API_KEY:
+                scrapers.append(
+                    BraveSearchScraper(
+                        query=query,
+                        topic_name=topic_name,
+                        category=category
+                    )
+                )
 
     return scrapers
 

@@ -23,6 +23,7 @@ async def create_or_get_user(payload: UserCreateRequest):
     if existing:
         return UserResponse(
             email=existing["email"],
+            is_subscribed=existing.get("isSubscribed", existing.get("schedule", {}).get("enabled", True)),
             topics=existing.get("topics", []),
             schedule=existing.get("schedule", ScheduleSettings().model_dump()),
             created_at=existing.get("created_at"),
@@ -39,6 +40,7 @@ async def create_or_get_user(payload: UserCreateRequest):
     
     new_user_doc = {
         "email": email,
+        "isSubscribed": True,
         "topics": default_topics,
         "schedule": ScheduleSettings().model_dump(),
         "created_at": now,
@@ -48,6 +50,7 @@ async def create_or_get_user(payload: UserCreateRequest):
     await users_col.insert_one(new_user_doc)
     return UserResponse(
         email=email,
+        is_subscribed=True,
         topics=[TopicItem(**t) for t in default_topics],
         schedule=ScheduleSettings(),
         created_at=now,
@@ -69,6 +72,7 @@ async def get_user_profile(email: str):
     
     return UserResponse(
         email=user["email"],
+        is_subscribed=user.get("isSubscribed", user.get("schedule", {}).get("enabled", True)),
         topics=user.get("topics", []),
         schedule=user.get("schedule", ScheduleSettings().model_dump()),
         created_at=user.get("created_at"),
@@ -118,8 +122,28 @@ async def update_user_topics(email: str, payload: UserTopicsUpdateRequest):
         
     return UserResponse(
         email=res["email"],
+        is_subscribed=res.get("isSubscribed", res.get("schedule", {}).get("enabled", True)),
         topics=res.get("topics", []),
         schedule=res.get("schedule", ScheduleSettings().model_dump()),
         created_at=res.get("created_at"),
         updated_at=res.get("updated_at")
     )
+
+@router.delete("/{email}", status_code=status.HTTP_200_OK)
+async def delete_user_account(email: str):
+    """Permanently deletes user account, preferences, and schedules from database."""
+    users_col = get_users_collection()
+    email_clean = email.lower().strip()
+    
+    result = await users_col.delete_one({"email": email_clean})
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with email '{email_clean}' not found."
+        )
+    
+    return {
+        "status": "success",
+        "message": f"Account '{email_clean}' and all preferences have been deleted.",
+        "email": email_clean
+    }

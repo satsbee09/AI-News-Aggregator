@@ -36,10 +36,12 @@ function getCurrentTimeInTimezone(timezone = 'Asia/Kolkata') {
 function isUserDueForDigest(user, forceCheck = false) {
   if (!user || !user.email) return false;
   if (!user.topics || user.topics.length === 0) return false;
+  if (user.isSubscribed === false) return false;
+  if (user.schedule && user.schedule.enabled === false) return false;
 
   if (forceCheck) return true;
 
-  const schedule = user.schedule || { time: '07:30', frequency: 'daily', timezone: 'Asia/Kolkata' };
+  const schedule = user.schedule || { time: '07:30', frequency: 'daily', timezone: 'Asia/Kolkata', enabled: true };
   const currentTime = getCurrentTimeInTimezone(schedule.timezone);
   const targetTime = schedule.time || '07:30';
 

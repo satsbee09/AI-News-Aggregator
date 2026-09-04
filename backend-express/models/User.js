@@ -9,7 +9,8 @@ const TopicSchema = new mongoose.Schema({
 const ScheduleSchema = new mongoose.Schema({
   time: { type: String, default: '23:00' },
   frequency: { type: String, default: 'daily' },
-  timezone: { type: String, default: 'Asia/Kolkata' }
+  timezone: { type: String, default: 'Asia/Kolkata' },
+  enabled: { type: Boolean, default: true }
 }, { _id: false });
 
 const UserSchema = new mongoose.Schema({
@@ -20,6 +21,10 @@ const UserSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
     index: true
+  },
+  isSubscribed: {
+    type: Boolean,
+    default: true
   },
   topics: {
     type: [TopicSchema],
@@ -32,7 +37,7 @@ const UserSchema = new mongoose.Schema({
   },
   schedule: {
     type: ScheduleSchema,
-    default: () => ({ time: '23:00', frequency: 'daily', timezone: 'Asia/Kolkata' })
+    default: () => ({ time: '23:00', frequency: 'daily', timezone: 'Asia/Kolkata', enabled: true })
   },
   lastSentAt: {
     type: Date,

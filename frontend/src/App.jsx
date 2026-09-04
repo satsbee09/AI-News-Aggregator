@@ -25,19 +25,88 @@ import {
   MessageSquareText,
   Bot,
   RotateCcw,
-  Search
+  Search,
+  Trash2,
+  AlertTriangle,
+  Bell,
+  BellOff,
+  HelpCircle,
+  ShieldAlert
 } from 'lucide-react';
 
 const CATEGORY_META = {
-  ai: { name: 'Frontier AI & LLMs', scope: 'ai', category: 'ai', color: '#6C5CE7', icon: Cpu },
-  local: { name: 'Local Ghaziabad News', scope: 'local', category: 'local', color: '#FF9F43', icon: MapPin },
-  national: { name: 'National Politics & India', scope: 'national', category: 'politics', color: '#EE5A6F', icon: Globe },
-  international: { name: 'Global Geopolitics', scope: 'international', category: 'international', color: '#6C5CE7', icon: Globe },
-  sports: { name: 'Cricket & Sports', scope: 'sports', category: 'sports', color: '#00D9A5', icon: Trophy },
-  weather: { name: 'Delhi NCR Weather', scope: 'weather', category: 'weather', color: '#4ECDC4', icon: CloudSun },
-  business: { name: 'Global Markets & Business', scope: 'general', category: 'business', color: '#FFD93D', icon: Briefcase },
-  tech: { name: 'Tech Startups & Venture', scope: 'general', category: 'tech', color: '#A29BFE', icon: Cpu },
-  entertainment: { name: 'Cinema & Pop Culture', scope: 'general', category: 'entertainment', color: '#FD79A8', icon: Film },
+  ai: { 
+    name: 'Frontier AI & LLMs', 
+    scope: 'ai', 
+    category: 'ai', 
+    color: '#6C5CE7', 
+    icon: Cpu,
+    description: 'LLM breakthroughs, reasoning benchmarks (GPT, Claude, Gemini), open-weights & AI research'
+  },
+  local: { 
+    name: 'Local Ghaziabad News', 
+    scope: 'local', 
+    category: 'local', 
+    color: '#FF9F43', 
+    icon: MapPin,
+    description: 'NCR municipal infrastructure, UP state developments, Ghaziabad civic notices & metro updates'
+  },
+  national: { 
+    name: 'National Politics & India', 
+    scope: 'national', 
+    category: 'politics', 
+    color: '#EE5A6F', 
+    icon: Globe,
+    description: 'Indian parliament bills, election policy, economic reforms, governance & Supreme Court rulings'
+  },
+  international: { 
+    name: 'Global Geopolitics', 
+    scope: 'international', 
+    category: 'international', 
+    color: '#6C5CE7', 
+    icon: Globe,
+    description: 'World summits, international diplomacy, defense treaties, global trade & multilateral affairs'
+  },
+  sports: { 
+    name: 'Cricket & Sports', 
+    scope: 'sports', 
+    category: 'sports', 
+    color: '#00D9A5', 
+    icon: Trophy,
+    description: 'ICC matches, IPL tournaments, BCCI developments, athletics, tennis & global sports leagues'
+  },
+  weather: { 
+    name: 'Delhi NCR Weather', 
+    scope: 'weather', 
+    category: 'weather', 
+    color: '#4ECDC4', 
+    icon: CloudSun,
+    description: 'IMD rainfall alerts, AQI smog indices, monsoon forecasts & temperature advisories for Delhi-NCR'
+  },
+  business: { 
+    name: 'Global Markets & Business', 
+    scope: 'general', 
+    category: 'business', 
+    color: '#FFD93D', 
+    icon: Briefcase,
+    description: 'Stock markets, central bank interest rates, inflation trends, corporate earnings & venture funding'
+  },
+  tech: { 
+    name: 'Tech Startups & Venture', 
+    scope: 'general', 
+    category: 'tech', 
+    color: '#A29BFE', 
+    icon: Cpu,
+    description: 'Silicon Valley & Indian unicorn funding, consumer electronics, cybersecurity & software launches'
+  },
+  entertainment: { 
+    name: 'Cinema & Pop Culture', 
+    scope: 'general', 
+    category: 'entertainment', 
+    color: '#FD79A8', 
+    icon: Film,
+    description: 'Film festival releases, box office trends, streaming platform debuts & award announcements'
+  },
 };
 
 const PREDEFINED_TOPICS = Object.values(CATEGORY_META);
@@ -76,6 +145,13 @@ export default function App() {
   const [schedTime, setSchedTime] = useState('23:00');
   const [schedFreq, setSchedFreq] = useState('daily');
   const [schedTz, setSchedTz] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata');
+  const [isSubscribed, setIsSubscribed] = useState(true);
+  const [togglingSub, setTogglingSub] = useState(false);
+
+  // Danger Zone / Account State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [activeChannelInfo, setActiveChannelInfo] = useState(null);
 
   // RAG Ask News State
   const [chatMessages, setChatMessages] = useState([]);
@@ -105,6 +181,8 @@ export default function App() {
         const data = await res.json();
         setUserProfile(data);
         setSelectedTopics(data.topics || []);
+        if (data.isSubscribed !== undefined) setIsSubscribed(data.isSubscribed);
+        else if (data.schedule && data.schedule.enabled !== undefined) setIsSubscribed(data.schedule.enabled);
       }
     } catch (err) {
       console.error('Account creation error:', err);
@@ -119,6 +197,11 @@ export default function App() {
         const data = await res.json();
         setUserProfile(data);
         setSelectedTopics(data.topics || []);
+        if (data.isSubscribed !== undefined) {
+          setIsSubscribed(data.isSubscribed);
+        } else if (data.schedule && data.schedule.enabled !== undefined) {
+          setIsSubscribed(data.schedule.enabled);
+        }
         if (data.schedule) {
           setSchedTime(data.schedule.time || '23:00');
           setSchedFreq(data.schedule.frequency || 'daily');
@@ -129,6 +212,61 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error loading profile:', err);
+    }
+  };
+
+  // Toggle Pause/Resume Email Subscription
+  const handleToggleSubscription = async () => {
+    if (!email || togglingSub) return;
+    setTogglingSub(true);
+    const nextState = !isSubscribed;
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(email)}/schedule`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: nextState })
+      });
+      if (res.ok) {
+        setIsSubscribed(nextState);
+        showToast(nextState ? 'Automated email delivery active!' : 'Automated email digests paused.', nextState ? 'success' : 'info');
+      } else {
+        showToast('Failed to update subscription status', 'error');
+      }
+    } catch (err) {
+      console.error('Subscription toggle error:', err);
+      showToast('Server error updating subscription', 'error');
+    } finally {
+      setTogglingSub(false);
+    }
+  };
+
+  // Permanently Delete Account
+  const handleDeleteAccount = async () => {
+    if (!email || deletingAccount) return;
+    setDeletingAccount(true);
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(email)}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        localStorage.removeItem('news_aggregator_user_email');
+        localStorage.removeItem('news_aggregator_cached_feed');
+        setEmail('');
+        setUserProfile(null);
+        setSelectedTopics([]);
+        setPreviewData([]);
+        setActiveTab('topics');
+        setShowDeleteModal(false);
+        showToast('Your account and all preferences were permanently deleted.', 'info');
+      } else {
+        const errData = await res.json();
+        showToast(errData.error || 'Failed to delete account', 'error');
+      }
+    } catch (err) {
+      console.error('Account deletion error:', err);
+      showToast('Network error during account deletion', 'error');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -391,7 +529,7 @@ export default function App() {
     showToast('Chat history cleared', 'info');
   };
 
-  // Live Web Search Handler (Google CSE -> Brave Search)
+  // Live Web Search Handler
   const handleLiveSearch = async (overrideQuery = null) => {
     const q = (overrideQuery || liveSearchQuery).trim();
     if (!q || liveSearchLoading) return;
@@ -402,8 +540,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: q,
-          topic: selectedTopics[0]?.name || 'general'
+          query: q
         })
       });
 
@@ -590,13 +727,14 @@ export default function App() {
                   </span>
                 </div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginBottom: '18px' }}>
-                  Choose from popular categories or add any custom city/topic.
+                  Choose from predefined channels or add custom topic keywords. Click any channel to toggle.
                 </p>
 
-                {/* Predefined Dynamic Category Chips */}
+                {/* Predefined Dynamic Category Chips with Descriptions */}
                 <div className="topic-grid">
                   {PREDEFINED_TOPICS.map((pt) => {
                     const isSelected = selectedTopics.some(t => t.name.toLowerCase() === pt.name.toLowerCase());
+                    const isInspecting = activeChannelInfo === pt.name;
                     const IconComp = pt.icon;
                     const chipClass = `chip-${pt.category}`;
                     return (
@@ -604,16 +742,45 @@ export default function App() {
                         key={pt.name}
                         className={`topic-chip ${chipClass} ${isSelected ? 'selected' : ''}`}
                         onClick={() => togglePredefinedTopic(pt)}
+                        title={pt.description}
                       >
                         <IconComp size={16} />
-                        <span>{pt.name}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
+                          <span>{pt.name}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveChannelInfo(isInspecting ? null : pt.name);
+                          }}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: isSelected ? 'inherit' : 'var(--text-muted)', display: 'inline-flex' }}
+                          title="View channel coverage details"
+                        >
+                          <Info size={14} />
+                        </button>
                         {isSelected && <Check size={14} strokeWidth={3} />}
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Custom Topic Form */}
+                {/* Channel Scope Info Box (Description Drawer) */}
+                {activeChannelInfo && (
+                  <div className="channel-info-box">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <strong style={{ color: 'var(--text-main)', fontSize: '13px' }}>
+                        📡 {activeChannelInfo} Coverage:
+                      </strong>
+                      <span style={{ cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setActiveChannelInfo(null)}>
+                        <X size={14} />
+                      </span>
+                    </div>
+                    {PREDEFINED_TOPICS.find(p => p.name === activeChannelInfo)?.description}
+                  </div>
+                )}
+
+                {/* Custom Topic Form with Scope Descriptions */}
                 <form onSubmit={handleAddCustomTopic} style={{ marginTop: '24px', display: 'flex', gap: '10px' }}>
                   <input
                     type="text"
@@ -628,14 +795,15 @@ export default function App() {
                     value={customScope}
                     onChange={(e) => setCustomScope(e.target.value)}
                     style={{ width: '130px', padding: '10px', fontSize: '13px' }}
+                    title="Select scope to optimize search scraping filters"
                   >
-                    <option value="general">General</option>
-                    <option value="local">Local</option>
-                    <option value="national">National</option>
-                    <option value="international">Global</option>
-                    <option value="weather">Weather</option>
-                    <option value="sports">Sports</option>
-                    <option value="ai">AI / Tech</option>
+                    <option value="general">Scope: General</option>
+                    <option value="local">Scope: Local</option>
+                    <option value="national">Scope: National</option>
+                    <option value="international">Scope: Global</option>
+                    <option value="weather">Scope: Weather</option>
+                    <option value="sports">Scope: Sports</option>
+                    <option value="ai">Scope: AI / Tech</option>
                   </select>
                   <button type="submit" className="btn-secondary" style={{ padding: '10px 18px' }}>
                     + Add
@@ -645,7 +813,7 @@ export default function App() {
                 {/* Active Topics Queue */}
                 <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
                   <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Active Topic Queue:
+                    Active Topic Queue ({selectedTopics.length}):
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {selectedTopics.map((t) => (
@@ -690,20 +858,23 @@ export default function App() {
               <div className="card-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <h2 style={{ fontSize: '20px', fontWeight: '700' }}>2. Email Schedule</h2>
-                    <span style={{ fontSize: '12px', background: 'rgba(0, 217, 165, 0.12)', color: '#00D9A5', fontWeight: '700', padding: '4px 12px', borderRadius: 'var(--radius-full)' }}>
-                      ● Active
+                    <h2 style={{ fontSize: '20px', fontWeight: '700' }}>2. Email Delivery Schedule</h2>
+                    <span className={isSubscribed ? 'status-badge-active' : 'status-badge-paused'}>
+                      {isSubscribed ? '● Active' : '○ Paused'}
                     </span>
                   </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginBottom: '22px' }}>
-                    Set your preferred automated delivery time and frequency.
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginBottom: '20px' }}>
+                    Configure your automated daily anti-hype briefing time and delivery frequency.
                   </p>
 
                   <form onSubmit={handleSaveSchedule} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                     <div>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
-                        Delivery Time (24-Hour)
-                      </label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>
+                          Delivery Time (24-Hour Format)
+                        </label>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Local time ({schedTz})</span>
+                      </div>
                       <input
                         type="time"
                         className="form-input"
@@ -716,16 +887,16 @@ export default function App() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                       <div>
                         <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
-                          Frequency
+                          Frequency Mode
                         </label>
                         <select
                           className="form-input"
                           value={schedFreq}
                           onChange={(e) => setSchedFreq(e.target.value)}
                         >
-                          <option value="daily">Daily</option>
-                          <option value="every_6_hours">Every 6 Hours</option>
-                          <option value="every_12_hours">Every 12 Hours</option>
+                          <option value="daily">Daily (1x / day)</option>
+                          <option value="every_6_hours">Every 6 Hours (4x / day)</option>
+                          <option value="every_12_hours">Every 12 Hours (2x / day)</option>
                         </select>
                       </div>
 
@@ -742,11 +913,21 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Frequency Explanation Callout */}
+                    <div style={{ background: '#F8F8FD', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={14} color="var(--primary)" />
+                      <span>
+                        {schedFreq === 'daily' && `Daily summary delivered once every 24 hours at ${schedTime}.`}
+                        {schedFreq === 'every_6_hours' && `High-frequency digest delivered 4 times per day (every 6 hours).`}
+                        {schedFreq === 'every_12_hours' && `Morning & evening briefings delivered every 12 hours.`}
+                      </span>
+                    </div>
+
                     <button
                       type="submit"
                       disabled={savingSchedule}
                       className="btn-primary"
-                      style={{ marginTop: '8px' }}
+                      style={{ marginTop: '4px' }}
                     >
                       <Clock size={16} /> {savingSchedule ? 'Updating...' : 'Save Delivery Schedule'}
                     </button>
@@ -757,8 +938,8 @@ export default function App() {
                 <div style={{ marginTop: '24px', background: '#F8F8FD', padding: '16px 20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-main)' }}>Instant Dispatch</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Send test digest to {email}</div>
+                      <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-main)' }}>Instant Dispatch Test</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Send test digest directly to {email}</div>
                     </div>
                     <button
                       onClick={handleTriggerTest}
@@ -774,7 +955,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* 4. PROMINENT WARM ACCENT "GET NEWS NOW" CTA */}
+            {/* 3. PROMINENT WARM ACCENT "GET NEWS NOW" CTA */}
             <div className="card-panel" style={{ background: '#FFFFFF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '2px solid rgba(255, 159, 67, 0.4)', padding: '28px 36px' }}>
               <div>
                 <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -791,6 +972,82 @@ export default function App() {
               >
                 <Zap size={20} /> {loadingPreview ? 'Fetching Stories...' : 'Get News Now'}
               </button>
+            </div>
+
+            {/* 4. DANGER ZONE & SUBSCRIPTION MANAGEMENT CARD */}
+            <div className="card-panel danger-zone-panel" style={{ padding: '24px 30px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <ShieldAlert size={18} color="#EE5A6F" />
+                    <h3 style={{ fontSize: '16.5px', fontWeight: '800', color: '#EE5A6F' }}>
+                      Subscription & Account Controls
+                    </h3>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', maxWidth: '600px' }}>
+                    Pause your automated schedule at any time, or permanently delete your account and all stored preferences from MongoDB.
+                  </p>
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleToggleSubscription}
+                    disabled={togglingSub}
+                    className="btn-secondary"
+                    style={{ fontSize: '13px', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {isSubscribed ? <BellOff size={15} color="#FF9F43" /> : <Bell size={15} color="#00D9A5" />}
+                    {togglingSub ? 'Updating...' : isSubscribed ? 'Pause Delivery (Unsubscribe)' : 'Resume Delivery'}
+                  </button>
+
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="btn-danger-outline"
+                  >
+                    <Trash2 size={15} /> Delete Account
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+        {showDeleteModal && (
+          <div className="modal-backdrop" onClick={() => !deletingAccount && setShowDeleteModal(false)}>
+            <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-icon-warning">
+                <AlertTriangle size={30} color="#EE5A6F" />
+              </div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
+                Delete Account & Preferences?
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', lineHeight: '1.6', marginBottom: '24px' }}>
+                Are you sure you want to permanently delete the account for <strong>{email}</strong>?
+                <br /><br />
+                All your customized topic channels, automated delivery schedules, and stored vector embeddings will be completely purged from the database. This action cannot be reversed.
+              </p>
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deletingAccount}
+                  className="btn-secondary"
+                  style={{ padding: '10px 20px', fontSize: '13.5px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount}
+                  className="btn-danger-filled"
+                >
+                  <Trash2 size={15} /> {deletingAccount ? 'Deleting Account...' : 'Yes, Delete Account'}
+                </button>
+              </div>
             </div>
           </div>
         )}

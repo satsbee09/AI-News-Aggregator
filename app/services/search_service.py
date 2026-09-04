@@ -1,7 +1,10 @@
 import logging
 import requests
+import re
+import urllib.parse
 from typing import List, Dict, Any, Optional
 from datetime import datetime, date
+import feedparser
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -15,21 +18,20 @@ class SearchService:
         # In-memory quota tracker for Google Search (100 free queries/day threshold)
         self.google_quota_date = date.today()
         self.google_query_count = 0
-        self.google_daily_limit = 90  # Proactively switch to Brave after 90 queries
+        self.google_daily_limit = 90
 
     def _check_and_reset_quota(self):
-        """Resets the daily quota counter if a new calendar day has started."""
         today = date.today()
         if today != self.google_quota_date:
             self.google_quota_date = today
             self.google_query_count = 0
-            logger.info("[SEARCH SERVICE] Google CSE daily query counter reset for new day.")
 
-    def google_search(self, query: str, num_results: int = 5) -> List[Dict[str, Any]]:
-        """
-        Executes search via Google Custom Search JSON API.
-        Returns normalized list: [{title, url, snippet, source: 'google'}]
-        """
+    def _clean_html(self, text: str) -> str:
+        clean = re.sub(r'<[^>]+>', ' ', text or '')
+        return ' '.join(clean.split())
+
+    def google_search(self, query: str, num_results: int = 6) -> List[Dict[str, Any]]:
+        """Executes search via Google Custom Search JSON API."""
         if not self.google_api_key or not self.google_cse_id:
             raise ValueError("Google Custom Search API Key or CX ID is missing.")
 
@@ -45,13 +47,9 @@ class SearchService:
             "num": min(num_results, 10)
         }
 
-        response = requests.get(endpoint, params=params, timeout=10)
-        
-        if response.status_code == 429:
-            raise RuntimeError("Google Custom Search API returned 429 Too Many Requests.")
-        
+        response = requests.get(endpoint, params=params, timeout=8)
         if not response.ok:
-            raise RuntimeError(f"Google Custom Search API error {response.status_code}: {response.text[:200]}")
+            raise RuntimeError(f"Google CSE error {response.status_code}: {response.text[:150]}")
 
         self.google_query_count += 1
         data = response.json()
@@ -63,17 +61,13 @@ class SearchService:
                 "title": item.get("title", "").strip(),
                 "url": item.get("link", ""),
                 "snippet": item.get("snippet", "").strip(),
-                "source": "google",
+                "source": "google_search",
                 "published": item.get("pagemap", {}).get("metatags", [{}])[0].get("article:published_time")
             })
-
         return results
 
-    def brave_search(self, query: str, num_results: int = 5) -> List[Dict[str, Any]]:
-        """
-        Executes search via Brave Search API.
-        Returns normalized list: [{title, url, snippet, source: 'brave'}]
-        """
+    def brave_search(self, query: str, num_results: int = 6) -> List[Dict[str, Any]]:
+        """Executes search via Brave Search API."""
         if not self.brave_api_key:
             raise ValueError("Brave Search API Key is missing.")
 
@@ -88,72 +82,158 @@ class SearchService:
             "count": min(num_results, 10)
         }
 
-        response = requests.get(endpoint, headers=headers, params=params, timeout=10)
-
-        if response.status_code == 429:
-            raise RuntimeError("Brave Search API returned 429 Rate Limit Exceeded.")
-
+        response = requests.get(endpoint, headers=headers, params=params, timeout=8)
         if not response.ok:
-            raise RuntimeError(f"Brave Search API error {response.status_code}: {response.text[:200]}")
+            raise RuntimeError(f"Brave Search API error {response.status_code}: {response.text[:150]}")
 
         data = response.json()
         web_results = data.get("web", {}).get("results", [])
-
         results = []
         for item in web_results[:num_results]:
             results.append({
                 "title": item.get("title", "").strip(),
                 "url": item.get("url", ""),
                 "snippet": item.get("description", "").strip(),
-                "source": "brave",
+                "source": "brave_search",
                 "published": item.get("page_age")
             })
+        return results
 
+    def google_news_search(self, query: str, num_results: int = 6) -> List[Dict[str, Any]]:
+        """Searches Google News RSS feeds for the EXACT keyword/entity."""
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        }
+        
+        # Google News RSS yields maximal results with time-windowing or news queries
+        candidate_queries = [
+            f"when:24h {query}",
+            f"when:7d {query}",
+            f"when:30d {query}",
+            query
+        ]
+        
+        for cand in candidate_queries:
+            try:
+                encoded = urllib.parse.quote_plus(cand)
+                search_url = f"https://news.google.com/rss/search?q={encoded}"
+                res = requests.get(search_url, headers=headers, timeout=6)
+                if not res.ok:
+                    continue
+                
+                feed = feedparser.parse(res.content)
+                if not feed.entries:
+                    continue
+                
+                results = []
+                for entry in feed.entries[:num_results]:
+                    title = getattr(entry, "title", "Untitled")
+                    url = getattr(entry, "link", "")
+                    raw_summary = getattr(entry, "summary", title)
+                    
+                    # Extract source outlet from title format: "Article Title - Outlet"
+                    source_tag = "google_news"
+                    if " - " in title:
+                        source_tag = f"gnews_{title.rsplit(' - ', 1)[-1].strip().lower().replace(' ', '_')}"
+
+                    results.append({
+                        "title": title,
+                        "url": url,
+                        "snippet": self._clean_html(raw_summary),
+                        "source": source_tag,
+                        "published": getattr(entry, "published", None)
+                    })
+                
+                if results:
+                    return results
+            except Exception as e:
+                logger.debug(f"[SEARCH] Google News candidate '{cand}' failed: {e}")
+                continue
+                
+        return []
+
+    def bing_news_search(self, query: str, num_results: int = 6) -> List[Dict[str, Any]]:
+        """Searches Bing News RSS feeds for the EXACT keyword/entity."""
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        }
+        encoded = urllib.parse.quote_plus(query)
+        search_url = f"https://www.bing.com/news/search?q={encoded}&format=rss"
+        
+        res = requests.get(search_url, headers=headers, timeout=6)
+        if not res.ok:
+            return []
+
+        feed = feedparser.parse(res.content)
+        results = []
+        for entry in feed.entries[:num_results]:
+            title = getattr(entry, "title", "Untitled")
+            url = getattr(entry, "link", "")
+            raw_summary = getattr(entry, "summary", title)
+            results.append({
+                "title": title,
+                "url": url,
+                "snippet": self._clean_html(raw_summary),
+                "source": "bing_news",
+                "published": getattr(entry, "published", None)
+            })
         return results
 
     def live_search(
         self,
         query: str,
         topic: Optional[str] = None,
-        num_results: int = 5
+        num_results: int = 6
     ) -> List[Dict[str, Any]]:
         """
         Public entry point for live web search:
-        1. Appends topic keyword if provided (e.g. query='Noida', topic='local' -> 'Noida local news').
-        2. Tries Google Custom Search first.
-        3. Automatically falls back to Brave Search if Google errors, hits 429, or quota limit.
-        4. If both fail or no keys are configured, safely returns empty list without crashing.
+        Searches for the EXACT user query across multiple resilient engines:
+        1. Google Custom Search (if key active)
+        2. Brave Search API (if key active)
+        3. Google News Real-Time RSS Search
+        4. Bing News Real-Time RSS Search
         """
         clean_query = query.strip()
         if not clean_query:
             return []
 
-        # Contextually enrich query if topic is specified
-        search_term = clean_query
-        if topic and topic.lower() not in clean_query.lower():
-            topic_clean = topic.lower().replace("frontier ", "").replace("news", "").strip()
-            search_term = f"{clean_query} {topic_clean} news".strip()
-
-        # Step 1: Try Google Search
+        # 1. Try Google Custom Search API
         try:
-            results = self.google_search(search_term, num_results=num_results)
+            results = self.google_search(clean_query, num_results=num_results)
             if results:
-                logger.info(f"[SEARCH SUCCESS] Google Search returned {len(results)} results for: '{search_term}'")
+                logger.info(f"[SEARCH SUCCESS] Google Search returned {len(results)} results for: '{clean_query}'")
                 return results
         except Exception as e:
-            logger.warning(f"[SEARCH FALLBACK] Google Search unavailable ({e}). Falling back to Brave Search...")
+            logger.debug(f"[SEARCH] Google Search unavailable: {e}")
 
-        # Step 2: Fallback to Brave Search
+        # 2. Try Brave Search API
         try:
-            results = self.brave_search(search_term, num_results=num_results)
+            results = self.brave_search(clean_query, num_results=num_results)
             if results:
-                logger.info(f"[SEARCH SUCCESS] Brave Search returned {len(results)} results for: '{search_term}'")
+                logger.info(f"[SEARCH SUCCESS] Brave Search returned {len(results)} results for: '{clean_query}'")
                 return results
         except Exception as e:
-            logger.warning(f"[SEARCH FALLBACK] Brave Search failed ({e}).")
+            logger.debug(f"[SEARCH] Brave Search unavailable: {e}")
 
-        # Step 3: Graceful empty return
-        logger.warning(f"[SEARCH EXHAUSTED] No live search results retrieved for: '{search_term}'.")
+        # 3. Try Google News RSS for the exact query
+        try:
+            results = self.google_news_search(clean_query, num_results=num_results)
+            if results:
+                logger.info(f"[SEARCH SUCCESS] Google News RSS returned {len(results)} results for: '{clean_query}'")
+                return results
+        except Exception as e:
+            logger.debug(f"[SEARCH] Google News RSS error: {e}")
+
+        # 4. Try Bing News RSS for the exact query
+        try:
+            results = self.bing_news_search(clean_query, num_results=num_results)
+            if results:
+                logger.info(f"[SEARCH SUCCESS] Bing News RSS returned {len(results)} results for: '{clean_query}'")
+                return results
+        except Exception as e:
+            logger.debug(f"[SEARCH] Bing News RSS error: {e}")
+
+        logger.warning(f"[SEARCH EXHAUSTED] No live news results found for: '{clean_query}'.")
         return []
 
 search_service = SearchService()

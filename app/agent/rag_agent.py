@@ -10,7 +10,7 @@ from app.agent.base_llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # Cosine similarity threshold for stored vector sufficiency
-SIMILARITY_THRESHOLD = 0.70
+SIMILARITY_THRESHOLD = 0.55
 
 class RAGState(TypedDict):
     question: str
@@ -54,9 +54,12 @@ class RAGAgent:
             topics=user_topics if (user_topics and len(user_topics) > 0) else None
         )
 
-        # Fallback to general vector search if no matches in selected topics
-        if not articles:
-            articles = self.repo.vector_search(query_vector=query_vector, limit=6, topics=None)
+        # Fallback to general vector search if no matches or weak matches in selected topics
+        if not articles or (len(articles) > 0 and float(articles[0].get("score", 0.0)) < SIMILARITY_THRESHOLD):
+            general_articles = self.repo.vector_search(query_vector=query_vector, limit=6, topics=None)
+            if general_articles:
+                if not articles or float(general_articles[0].get("score", 0.0)) > float(articles[0].get("score", 0.0)):
+                    articles = general_articles
 
         return {"retrieved_articles": articles, "topics": user_topics}
 
@@ -86,20 +89,23 @@ class RAGAgent:
         
         return {
             "live_articles": live_results,
-            "from_live_search": True
+            "from_live_search": True if (live_results and len(live_results) > 0) else False
         }
 
     def _synthesize_answer_node(self, state: RAGState) -> Dict[str, Any]:
         """Node 3: Grounded response synthesis and citation generation with Groq LLM."""
         question = state.get("question", "")
-        from_live = state.get("from_live_search", False)
+        live_items = state.get("live_articles", [])
+        stored_items = state.get("retrieved_articles", [])
+        
+        # If live search returned results, use them; otherwise fall back to stored vector articles
+        use_live = state.get("from_live_search", False) and len(live_items) > 0
         
         context_blocks = []
         sources_meta = []
 
-        if from_live:
+        if use_live:
             # Format live web search context
-            live_items = state.get("live_articles", [])
             for idx, item in enumerate(live_items, start=1):
                 title = item.get("title", "Untitled")
                 snippet = item.get("snippet", "")
@@ -114,9 +120,8 @@ class RAGAgent:
                     "date": "Live Today",
                     "score": None
                 })
-        else:
+        elif stored_items:
             # Format stored vector context
-            stored_items = state.get("retrieved_articles", [])
             for idx, item in enumerate(stored_items, start=1):
                 title = item.get("title", "Untitled Article")
                 text = item.get("text", "")
@@ -140,6 +145,7 @@ class RAGAgent:
             return {
                 "answer": "I could not find enough relevant information from either your news collection or live web search to answer this question.",
                 "sources": [],
+                "from_live_search": False,
                 "grounded": False
             }
 

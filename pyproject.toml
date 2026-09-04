@@ -27,6 +27,7 @@ dependencies = [
     "sqlalchemy>=2.0.52",
     "uvicorn[standard]>=0.52.4",
     "youtube-transcript-api>=1.2.4",
+    "duckduckgo-search>=8.1.1",
 ]
 
 [tool.uv]
