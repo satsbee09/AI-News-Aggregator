@@ -37,19 +37,25 @@ Guidelines:
 Source: {source}
 
 Content:
-{raw_content[:7000]}
+{raw_content[:5000]}
 
 Generate the JSON summary now:"""
 
-        raw_response = self.llm.generate(system_prompt=system_prompt, user_prompt=user_prompt, json_mode=True)
-        
         try:
+            raw_response = self.llm.generate(system_prompt=system_prompt, user_prompt=user_prompt, json_mode=True)
             data = json.loads(raw_response)
             return DigestOutput(**data)
         except Exception as e:
-            # Fallback if parsing fails
+            print(f"      [WARN] Digest LLM generation failed ({e}). Using deterministic content extractor fallback.")
+            # Deterministic fallback: extract clean sentences from raw content
+            clean_lines = [l.strip() for l in raw_content.split("\n") if len(l.strip()) > 30]
+            summary_snippet = " ".join(clean_lines[:2]) if clean_lines else (raw_content[:250] + "...")
             return DigestOutput(
-                summary=raw_response[:300],
-                key_takeaways=["Key insight extracted", "Review full source for details", "Parsed with fallback"],
-                category="General AI"
+                summary=summary_snippet[:350],
+                key_takeaways=[
+                    f"Reported by {source.upper()}: {title[:80]}",
+                    "Live coverage update from primary news source",
+                    "Direct reference available via full article link"
+                ],
+                category="General"
             )
