@@ -1,54 +1,93 @@
-# AI News Aggregator — Master Project & Interview Handbook
+# AI News Aggregator & Intelligence Feed — Master Project & Interview Handbook
 
-This living guide contains everything you need to deeply understand the project and speak about it with confidence and clarity in technical interviews.
+This living guide contains everything you need to deeply understand the architecture, design choices, data pipelines, vector search, and agentic workflows of the project, allowing you to speak about it with authority and clarity in senior engineering and full-stack/AI interviews.
 
 ---
 
 ## 1. 30-Second Elevator Pitch (For Interviewers)
 
-> *"I built an automated, end-to-end **AI News Intelligence & Digest Pipeline** that aggregates, summarizes, curates, and delivers daily updates from top AI labs (OpenAI, Anthropic) and technical YouTube channels directly to a user's inbox.*
+> *"I built a production-grade, multi-tier **AI News Intelligence & Real-Time Q&A Platform** that automatically aggregates, curates, and delivers customized news across multiple domains (Frontier AI, Geopolitics, Local, Sports, Weather) at **zero cloud infrastructure cost**.*
 >
-> *The system is architected around clean software engineering principles: a decoupled scraper registry, an idempotent SQLite persistence layer using SQLAlchemy, an LLM-driven summarization and profile-based ranking engine using Groq/Gemini, and serverless daily scheduling via GitHub Actions—all built at **zero infrastructure cost**."*
+> *The architecture follows a decoupled **two-service split**: a **Node/Express API Gateway** managing user preferences, timezone-aware `node-cron` schedules, and public REST routes; and a **Python FastAPI Intelligence Engine** handling keyless scraping, anti-hype LLM summarization (Groq), **MongoDB Atlas Vector Search** with local FastEmbed vectors, and a **LangGraph StateGraph Agent** with automated live web search fallback (Google Custom Search + Brave Search).*
+>
+> *Users interact with a responsive **Inshorts/Flipboard-style React dashboard** featuring customizable channels, instant on-demand briefing previews, live web search, and a conversational RAG Q&A assistant."*
 
 ---
 
 ## 2. Problem Statement & Motivation
 
 ### The Problem
-* **Information Overload:** The AI field evolves daily across scattered sources (company research blogs, YouTube teardowns, arXiv, social media).
-* **Clickbait & Noise:** Many AI articles and videos are filled with marketing hype rather than technical substance.
-* **Cost & Maintenance Overhead:** Traditional aggregators rely on paid APIs (GPT-4o, hosted Postgres, cloud cron servers), making them expensive and heavy for personal or small-team use.
+* **Information Overload & Fragmented Sources:** Critical updates in AI, world affairs, and regional events are scattered across technical blogs, research papers, YouTube channels, and mainstream news outlets.
+* **Clickbait Fluff & Marketing Hype:** Modern news articles and videos are saturated with sensationalist headlines and low-density filler.
+* **Prohibitive Infrastructure Costs:** Standard RAG pipelines and scheduled SaaS aggregators often rely on expensive proprietary LLMs (GPT-4o), hosted vector stores (Pinecone), and paid cron servers.
+* **Stale Knowledge in Standard RAG:** Vector-only RAG systems fail when asked about breaking events or topics not yet indexed in the local database.
 
 ### The Solution
-* **Multi-source Automated Scraping:** Extracts raw articles and video transcripts automatically.
-* **Hype-Free LLM Summarization:** Converts long articles and 30-minute videos into 3-bullet core takeaways.
-* **Personalized Curation:** Uses an AI agent to score and rank news based on a customizable user profile (e.g., *"Focus on LLM architectures, ignore marketing buzz"*).
-* **Zero-Cost Serverless Pipeline:** Powered 100% by free tiers (Groq LLaMA 3.3, SQLite, GitHub Actions, Gmail SMTP).
+* **Multi-Source Keyless Scraping:** Extracts raw articles, weather forecasts, and video transcripts automatically with zero paid API keys.
+* **Anti-Hype LLM Summarization:** Transforms lengthy articles and transcripts into concise, 3-bullet technical takeaways using Groq LPU inference.
+* **Two-Service Architecture:** Isolates user authentication, MongoDB state management, and cron scheduling in Node.js, while offloading intensive ML/LLM/Vector operations to FastAPI.
+* **LangGraph-Orchestrated Hybrid RAG:** Combines **MongoDB Atlas Vector Search** (384-dimensional dense embeddings) with automatic **Google CSE / Brave Search fallback** via a stateful conditional graph.
+* **Zero Infrastructure Cost:** Runs 100% on free tiers (Groq, MongoDB Atlas M0, FastEmbed on CPU, Open-Meteo, Google/Brave free tiers, Gmail SMTP).
 
 ---
 
-## 3. High-Level Architecture & Data Flow
+## 3. High-Level Architecture & System Topology
 
-```text
-[Sources: RSS / YouTube] 
-       │
-       ▼
-[Scraper Layer] ────────► Normalizes data into unified Article schemas
-       │
-       ▼
-[Database (SQLite)] ─────► Persists raw articles & prevents duplicate scraping
-       │
-       ▼
-[LLM Summarizer Agent] ──► Generates concise 3-bullet takeaways (Groq / Gemini)
-       │
-       ▼
-[Curator Agent] ─────────► Scores & ranks articles against User Profile
-       │
-       ▼
-[Email Service] ─────────► Builds styled HTML email & delivers via Gmail SMTP
-       │
-       ▼
-[Sent Logs] ─────────────► Tracks delivered IDs to guarantee 0 duplicate emails
+```mermaid
+flowchart TD
+    subgraph FrontendTier["🖥️ Frontend Tier (React 19 + Vite - Port 5173)"]
+        UI["React Dashboard & Chat Interface<br/>- Topics & Delivery Scheduler Tab<br/>- Inshorts/Flipboard Curated Feed Tab<br/>- Standalone Live Web Search Bar<br/>- 'Ask News' LangGraph RAG Chat Tab"]
+    end
+
+    subgraph ServiceA["🟢 Service A: API Gateway (Node.js/Express - Port 5000)"]
+        ExpRouter["Express REST API Router"]
+        MongooseModels["Mongoose User Model<br/>(MongoDB 'users' Collection)"]
+        NodeCron["Timezone-Aware node-cron Engine<br/>(Ticks every minute)"]
+        FastAPIProxy["Axios Client<br/>(Injects X-Internal-Secret)"]
+    end
+
+    subgraph ServiceB["🐍 Service B: Intelligence Engine (Python/FastAPI - Port 8000)"]
+        FastAPIAuth["verify_internal_secret Dependency<br/>(HTTP 401 Protection)"]
+        InternalRoutes["Protected Internal Endpoints<br/>- POST /internal/news-preview<br/>- POST /internal/run-pipeline<br/>- POST /internal/ask<br/>- POST /internal/search-live"]
+        
+        Scrapers["Decoupled Scrapers<br/>- Google News RSS<br/>- YouTube Transcript Scraper<br/>- Open-Meteo Weather Scraper"]
+        
+        FastEmbed["FastEmbed Vectorizer<br/>(BAAI/bge-small-en-v1.5 - 384 dims)"]
+        
+        LangGraphAgent["LangGraph StateGraph RAG Agent<br/>1. Vector Retrieval Node<br/>2. Conditional Similarity Check (>=0.70)<br/>3. Live Search Node (Google -> Brave)<br/>4. Grounded Synthesis Node (Groq LLM)"]
+        
+        SearchService["SearchService Fallback Engine<br/>(Google CSE -> Brave API)"]
+        Curator["Weighted Multi-Topic Curator Agent"]
+        EmailService["Gmail SMTP Dispatcher"]
+    end
+
+    subgraph DatabaseTier["🗄️ Shared Persistence Layer (MongoDB Atlas Cluster)"]
+        AtlasUsers["Collection: 'users'<br/>(Email, Topics, Cron Schedule, Timezone, lastSentAt)"]
+        AtlasArticles["Collection: 'articles', 'digests', 'sent_logs'"]
+        AtlasVectors["Collection: 'article_embeddings'<br/>(Atlas Vector Search Index - 384 dims, Cosine)"]
+    end
+
+    UI -->|Public REST API /api/*| ExpRouter
+    ExpRouter --> MongooseModels
+    MongooseModels --> AtlasUsers
+    NodeCron --> MongooseModels
+    NodeCron --> FastAPIProxy
+    ExpRouter --> FastAPIProxy
+
+    FastAPIProxy -->|HTTP + X-Internal-Secret| FastAPIAuth
+    FastAPIAuth --> InternalRoutes
+
+    InternalRoutes --> Scrapers
+    InternalRoutes --> Curator
+    InternalRoutes --> EmailService
+    InternalRoutes --> LangGraphAgent
+    InternalRoutes --> SearchService
+
+    Scrapers --> AtlasArticles
+    AtlasArticles --> FastEmbed --> AtlasVectors
+    LangGraphAgent --> AtlasVectors
+    LangGraphAgent --> SearchService
+    LangGraphAgent --> GroqLLM["Groq LLM (LLaMA 3.3 / Qwen 2.5)"]
 ```
 
 ---
@@ -57,134 +96,115 @@ This living guide contains everything you need to deeply understand the project 
 
 | Technology | Purpose | Why We Chose It (Interview Answer) |
 | :--- | :--- | :--- |
-| **Python 3.12+** | Core Language | Robust ecosystem for scraping, data manipulation, ORMs, and AI/LLM SDKs. |
-| **`uv`** | Package & Environment Manager | Up to 10–100x faster than standard `pip`/`venv`, built in Rust, single binary, with deterministic lockfiles. |
-| **Pydantic & Pydantic-Settings** | Config & Data Validation | Guarantees type safety, parses environment variables, and fails fast at startup if configuration is missing. |
-| **SQLAlchemy (ORM)** | Persistence Layer | Provides decoupled database models, migration flexibility, and protects against raw SQL injection. |
-| **SQLite** | Database Engine | Zero-configuration, serverless, single-file database. Perfect for single-user workloads with 0 cloud cost. |
-| **Feedparser** | RSS Parsing | Handles malformed or non-standard RSS/Atom feeds reliably across diverse blogs. |
-| **`youtube-transcript-api`** | Video Content Extraction | Extracts closed captions/transcripts directly from YouTube video IDs without requiring paid quotas or proxies. |
-| **Groq API (LLaMA 3.3 70B)** | LLM Inference | Ultra-low latency (~500 tokens/sec), OpenAI-compatible client, and generous free tier. |
-| **Gmail SMTP (`smtplib`)** | Delivery | Standard, reliable email protocol using secure TLS/SSL and 16-character Google App Passwords. |
-| **GitHub Actions** | Automation & Scheduling | Completely serverless cron runner (`on: schedule`), eliminating the need for a 24/7 paid server. |
+| **Node.js & Express** | Service A (Public API Gateway) | Lightweight, non-blocking I/O ideal for API gateways, request validation, and running background cron schedules without blocking CPU-intensive ML tasks. |
+| **Python 3.12 + FastAPI** | Service B (Intelligence Engine) | Native ecosystem for AI/ML, asynchronous request handling, high throughput, and seamless integration with LangGraph, FastEmbed, and LLMs. |
+| **React 19 & Vite** | Frontend Client | Ultra-fast HMR build tool, declarative UI rendering, responsive card grid design, and clean proxy routing to Service A. |
+| **MongoDB Atlas (M0 Free Tier)** | Shared Database & Vector Store | Unified cloud database for user documents, articles, digests, and **native Vector Search** (`$vectorSearch`), avoiding the need for an external vector DB. |
+| **`fastembed` (`BAAI/bge-small-en-v1.5`)** | Local Vector Embeddings | Fast, quantized, CPU-optimized embedding generation (384 dimensions) running locally in <5ms with **0 API cost** and no external rate limits. |
+| **LangGraph (`StateGraph`)** | Agentic Workflow & Fallback Routing | Models retrieval, evaluation, and search fallback as a deterministic, stateful graph with conditional edges rather than fragile linear chains. |
+| **Groq API (`qwen/qwen3.8-27b`, `openai/gpt-oss-120b`)** | LLM Inference Engine | Ultra-fast token generation (~500 tokens/sec), OpenAI API compatibility, and a generous free tier for structured JSON generation. |
+| **Google Custom Search JSON API** | Primary Live Web Search | Rich web search results directly from Google index with 100 free queries/day. |
+| **Brave Search API** | Fallback Live Web Search | Privacy-focused independent search index with 2,000 free queries/month used as automatic fallback when Google hits quota or rate limits. |
+| **`node-cron`** | Scheduled Delivery Engine | Timezone-aware in-process scheduler that dynamically parses IANA timezones (e.g. `Asia/Kolkata`, `America/New_York`) to trigger user digests at their exact local time. |
+| **`youtube-transcript-api`** | Video Content Extraction | Extracts subtitles/transcripts directly from YouTube video IDs without needing paid YouTube Data API v3 quotas. |
+| **Open-Meteo API** | Weather Forecasting | Completely keyless, open-source weather API providing temperature, precipitation, and conditions based on coordinates. |
+| **Gmail SMTP (`smtplib`)** | Email Delivery | Reliable TLS-encrypted email dispatcher using Google 16-character App Passwords and responsive HTML email templates. |
 
 ---
 
-## 5. Core Concepts & Definitions (Explained in Plain English)
+## 5. Core Architectural Concepts (Explained in Plain English)
 
-### 1. What is an ORM (Object-Relational Mapping)?
-* **Definition:** A library (like SQLAlchemy) that lets you interact with database tables as if they were regular Python classes and objects.
-* **Why use it?** Instead of writing `INSERT INTO articles VALUES (...)` in raw SQL strings, you write `session.add(Article(title="..."))`. It prevents syntax errors and SQL injection.
+### 1. Two-Service Split & Internal Secret Authentication
+* **Concept:** Separating public gateway concerns (user management, routing, rate limiting) from internal intelligence engines (scraping, vector search, LLMs).
+* **How We Apply It:** Service A (Express on port 5000) exposes public `/api/*` endpoints to the React frontend. When it needs AI or scraping capabilities, it calls Service B (FastAPI on port 8000) injecting a cryptographically secure `X-Internal-Secret` header. FastAPI enforces this via `verify_internal_secret` dependency and rejects any direct unauthorized request with `HTTP 401 Unauthorized`.
 
-### 2. What is Idempotency?
-* **Definition:** An operation is *idempotent* if running it once or running it 100 times produces the exact same result without duplicate side-effects.
-* **How we apply it:** If the scraper runs twice in an hour, it checks `url` or `article_id` in SQLite and ignores existing items. No duplicate articles or duplicate emails are ever generated.
+### 2. Dense Vector Embeddings & MongoDB Atlas Vector Search
+* **Concept:** Converting unstructured text (article titles + summaries) into mathematical vectors (lists of 384 floating-point numbers) where semantic similarity corresponds to spatial proximity (cosine similarity).
+* **How We Apply It:** We use `fastembed` locally to vectorize all digests. Vectors are persisted in `news_aggregator.article_embeddings`. Atlas indexes this collection with an index definition (`type: "vectorSearch"`, `numDimensions: 384`, `similarity: "cosine"`, `filter: ["topic"]`). Retrieval queries use MongoDB's `$vectorSearch` pipeline stage scoped to the user's active topics.
 
-### 3. What is Decoupling / Separation of Concerns?
-* **Definition:** Dividing a software application into distinct sections, where each section handles a specific responsibility.
-* **How we apply it:** 
-  - `scrapers/` only cares about fetching raw HTML/XML.
-  - `database/` only cares about saving/querying data.
-  - `agent/` only cares about prompting the LLM.
-  - If we switch from SQLite to PostgreSQL, or from Groq to Gemini, we only modify one isolated module without breaking the others.
+### 3. LangGraph Stateful Agent with Conditional Fallback
+* **Concept:** Instead of a rigid linear pipeline, LangGraph structures the agent as a state machine (`StateGraph`) with nodes, state transitions, and conditional routing.
+* **How We Apply It:** 
+  1. `_vector_search_node`: Queries local vector database for matches.
+  2. `_check_retrieval_condition`: Inspects top cosine similarity score. If `top_score >= 0.70`, routes to `_synthesize_answer_node`. If results are empty or similarity < 0.70, routes to `_live_search_node`.
+  3. `_live_search_node`: Queries Google Custom Search -> Brave Search.
+  4. `_synthesize_answer_node`: Prompts Groq LLM to produce a grounded briefing with source citations and marks `from_live_search: True/False`.
 
-### 4. What is `pydantic-settings`?
-* **Definition:** A tool that automatically reads environment variables (`.env`) and converts them into validated Python data types (integers, strings, booleans).
-* **Why use it?** If `EMAIL_PORT` is not an integer or `GROQ_API_KEY` is empty, the application raises a clear error at startup rather than crashing halfway through a live pipeline run.
-
----
-
-## 6. Code Walkthrough by Phase (Updated As We Build)
-
-### Phase 0: Project Setup & Environment Configuration
-* **Files Built:** `pyproject.toml`, `app/config.py`, `main.py`, `.env.example`, `.gitignore`.
-* **Key Code Explained:**
-  - `class Settings(BaseSettings)`: Defines configuration schema with default fallback values.
-  - `model_config = SettingsConfigDict(env_file=".env", extra="ignore")`: Tells Pydantic to read `.env` and ignore extra variables.
-  - `settings = Settings()`: Instantiates a singleton settings object imported across the app.
-  - `[tool.uv] package = false`: Configures `uv` for application-mode rather than packaging mode.
-
-### Phase 1: Persistence Layer & SQLAlchemy ORM
-* **Files Built:** `app/database/models.py`, `app/database/connection.py`, `app/database/repository.py`, `tests/test_db.py`.
-* **Key Code Explained:**
-  - **Modern SQLAlchemy 2.0 Syntax:** Uses `Mapped[T]` and `mapped_column()` for 100% static type safety across tables.
-  - **Tables:** `Article` (raw content & source), `Digest` (LLM-generated summary, 1-to-1 with Article), and `SentLog` (tracks emails sent to prevent duplicates).
-  - **Outer Join Query (`outerjoin`):** `select(Article).outerjoin(Digest).where(Digest.id.is_(None))` efficiently finds raw articles that have not yet been summarized by the LLM without loading everything into Python memory.
-  - **Idempotency Guard:** `save_article()` queries `select(Article).where(Article.url == url)` before inserting. If the URL exists, it returns `None`, guaranteeing no duplicate rows even if a scraper runs 50 times a day.
-
-### Phase 2: First RSS Scraper & Abstract Scraper Pattern
-* **Files Built:** `app/scrapers/base.py`, `app/scrapers/rss_scraper.py`, `tests/test_rss_scraper.py`.
-* **Key Code Explained:**
-  - **Abstract Base Class (`BaseScraper`):** Enforces a uniform `get_articles(hours: int = 24) -> List[ScrapedArticle]` contract across all data sources (Polymorphism).
-  - **HTML Sanitization:** Uses regex stripping (`re.sub(r'<[^>]+>', ' ', html)`) to extract clean, un-polluted text for the LLM.
-  - **Timezone-Aware Filtering:** Normalizes heterogeneous RSS timestamps (RFC 822 / ISO 8601) to UTC `datetime` objects and filters items within an operational window (e.g. last 48-72 hours).
-
-### Phase 3: YouTube Channel Scraper & Transcripts
-* **Files Built:** `app/scrapers/youtube_scraper.py`, `tests/test_youtube_scraper.py`.
-* **Key Code Explained:**
-  - **Free Video Discovery via Channel RSS:** Uses `https://www.youtube.com/feeds/videos.xml?channel_id=...` to list new videos with zero Google Cloud API quota and zero authentication.
-  - **Automated Caption Extraction (`youtube-transcript-api`):** Extracts full spoken subtitles and joins timed chunks into plain English text.
-  - **Defensive Fallback Pattern:** If a video creator disables closed captions (`TranscriptsDisabled`, `NoTranscriptFound`), the scraper catches the error and falls back to the video description, ensuring pipeline continuity without crashing.
-
-### Phase 4: LLM Summarization & Anti-Hype Prompting
-* **Files Built:** `app/agent/base_llm.py`, `app/agent/digest_agent.py`, `app/services/process_digest.py`, `tests/test_digest_agent.py`.
-* **Key Code Explained:**
-  - **Model Fallback Chain:** Implemented resilient multi-model failover in `base_llm.py` (`qwen/qwen3.8-27b`, `qwen/qwen3.6-27b`, `openai/gpt-oss-120b`, `openai/gpt-oss-20b`) ensuring zero downtime if any single model is throttled or deprecated.
-  - **Anti-Hype System Prompt:** Instructs the LLM to discard clickbait and marketing fluff (*"game-changing"*, *"shocking"*) and extract core technical contributions, model benchmarks, and architectural takeaways.
-  - **Structured Schema (`Pydantic`):** Enforces a strict JSON contract (`summary`, `key_takeaways: list[str]`, `category`) that parses directly into typed Python objects.
-
-### Phase 5: Curation & User Profile-Based Ranking
-* **Files Built:** `app/profiles/user_profile.py`, `app/agent/curator_agent.py`, `tests/test_curator_agent.py`.
-* **Key Code Explained:**
-  - **Declarative User Profile:** Defines targeted technical domains (e.g., LLM architectures, reasoning capabilities) and explicit exclusions (e.g., crypto buzzwords, generic PR) without altering core code.
-  - **Relevance Scoring Engine:** The Curator Agent scores candidate digests from 1 to 10 and produces a human-readable justification for each score.
-  - **Top-N Slicing:** Sorts digests in descending order of relevance and slices the top 5 articles, respecting the user's reading bandwidth.
-
-### Phase 6: Email Generation & SMTP Delivery
-* **Files Built:** `app/services/email_service.py`, `tests/test_email_service.py`.
-* **Key Code Explained:**
-  - **Zero-Cost Delivery with Gmail SMTP:** Uses Python's native `smtplib` + `MIMEMultipart` over TLS (Port 587) with a secure 16-character Google App Password.
-  - **Client-Resilient HTML Email Design:** Formats cards, score badges, and bullet takeaways using standard inline CSS compatible with all major email clients (Gmail, Apple Mail, Outlook).
-  - **Delivery State Tracking & Deduplication:** Commits sent digest IDs to `sent_logs` within the same transaction to guarantee that delivered stories are never repeated in future digests.
-  - **Local HTML Artifact Preview:** Generates `data/latest_digest_preview.html` for offline visual inspection and dry-run testing.
-
-### Phase 7: End-to-End Orchestrator & CLI Interface
-* **Files Built:** `app/services/pipeline_service.py`, `main.py`.
-* **Key Code Explained:**
-  - **Unified Pipeline Orchestrator (`run_daily_pipeline`):** Coordinates Ingestion ➔ Persistence ➔ Summarization ➔ Ranking ➔ Delivery ➔ State Logging sequentially with structured timing logs.
-  - **The Scraper Registry Pattern:** Scrapers are registered in a polymorphic array `SCRAPER_REGISTRY = [RssScraper(), YouTubeScraper()]`, making adding future sources (e.g. ArXiv) a single-line change.
-  - **CLI Flags (`argparse`):** Enables operational flexibility via `--dry-run`, `--hours <N>`, `--limit <N>`, and `--scrape-only`.
-
-### Phase 8: Free Serverless Automation with GitHub Actions
-* **Files Built:** `.github/workflows/daily_digest.yml`.
-* **Key Code Explained:**
-  - **Zero-Server Infrastructure:** Replaces paid background workers (Render/AWS/GCP) with free GitHub Actions scheduled workflows (`on: schedule`, cron syntax).
-  - **Secure Secrets Injection:** Securely loads `GROQ_API_KEY`, `EMAIL_USER`, and `EMAIL_APP_PASSWORD` from encrypted repository secrets directly into the runner environment.
-  - **Manual Trigger Support (`workflow_dispatch`):** Allows instant on-demand pipeline execution directly from the GitHub web UI for testing and verification.
-
-### Phase 9: Universal Multi-Topic Engine & MongoDB Upgrade
-* **Files Built / Upgraded:** `app/database/mongo.py`, `app/scrapers/google_news_scraper.py`, `app/scrapers/weather_scraper.py`, `app/services/pipeline_service.py`, `app/services/email_service.py`.
-* **Key Code Explained:**
-  - **MongoDB Persistence (`PyMongo`):** Replaced SQLite with MongoDB Atlas, establishing indexed collections (`topics`, `articles`, `digests`, `sent_logs`) and `$lookup` aggregations.
-  - **Dynamic Topic-Driven Scrapers:** Constructed runtime scrapers based on user `topics` stored in MongoDB, combining Google News RSS (dynamic queries & locales) with Open-Meteo weather forecasts.
-  - **Weighted Multi-Topic AI Curator:** The Curator Agent computes weighted relevance scores (`score * topic_weight`) across AI, Local, National, International, Sports, and Weather.
-  - **Sectioned HTML Newsletter:** Groups top daily stories into rich visual sections with category badges (🤖 AI, 📍 Local, 🇮🇳 National, 🌍 World, 🏏 Sports, 🌦️ Weather).
+### 4. Resilient Multi-Tier Search Fallback with Quota Tracking
+* **Concept:** Combining multiple third-party APIs with different quota structures to maximize uptime and prevent user disruption.
+* **How We Apply It:** `SearchService` tracks daily Google queries in-memory. If Google returns HTTP 429, errors out, or hits 90 queries/day, it automatically falls back to Brave Search API. If both fail, it returns an empty list gracefully without throwing an uncaught exception.
 
 ---
 
-## 7. Top Interview Questions & How to Answer
+## 6. Complete Implementation Walkthrough by Phase
 
-### Q1: "Why did you choose SQLite over PostgreSQL or MongoDB?"
-> **Answer:** *"For a single-user daily digest aggregator, PostgreSQL introduces unnecessary infrastructure complexity, network latency, and hosting costs. SQLite is a serverless, zero-maintenance ACID-compliant single-file database that handles millions of rows easily. Furthermore, because I used SQLAlchemy as the ORM layer, transitioning to PostgreSQL in the future requires changing only a single connection string in `.env` without rewriting any business logic."*
+### Phase 1–8: Core Scraper, LLM Summarizer & SMTP Foundation
+* Built modular scrapers (`GoogleNewsScraper`, `RssScraper`, `YouTubeScraper`, `WeatherScraper`).
+* Built `DigestAgent` with multi-model fallback chain (`qwen/qwen3.8-27b`, `openai/gpt-oss-120b`).
+* Built `CuratorAgent` with weighted multi-topic scoring and HTML newsletter generation via Gmail SMTP.
 
-### Q2: "How do you handle API rate limits and scraper failures?"
-> **Answer:** *"I implemented defensive programming with try/except boundaries around each individual scraper. If Anthropic's RSS feed is temporarily down or a YouTube video has disabled transcripts, the error is logged, and the pipeline continues gracefully with the remaining sources. For LLM calls, batching and retry logic prevent exceeding rate limits."*
+### Phase 9: MongoDB Atlas Cloud Migration & Dynamic Topics
+* Migrated from local SQLite to MongoDB Atlas.
+* Built `MongoRepository` managing indexed collections (`users`, `articles`, `digests`, `sent_logs`, `article_embeddings`).
 
-### Q3: "How do you ensure you don't email the user the same article twice?"
-> **Answer:** *"I use a dedicated `sent_logs` table in the database. Before generating the final email digest, the curation service filters out any article or digest ID that already exists in `sent_logs`. Once the email is successfully dispatched via SMTP, the new IDs are committed in a database transaction."*
+### Phase 10: Two-Service Architecture Split & Gateway Security
+* **Files:** `app/api/auth.py`, `app/api/routes/internal.py`, `backend-express/server.js`, `backend-express/services/fastapiClient.js`.
+* Created internal endpoints (`/internal/news-preview`, `/internal/run-pipeline`, `/internal/ask`) protected by `X-Internal-Secret`.
+* Built Express proxy gateway forwarding frontend traffic and masking internal errors with HTTP 502 guards.
 
-### Q4: "Why use Groq instead of OpenAI?"
-> **Answer:** *"Groq provides high-performance LPU (Language Processing Unit) inference for state-of-the-art open models like LLaMA 3.3 70B at near-instant speeds (~500 tokens/sec) with a free tier. It uses the OpenAI API standard format, making it trivial to switch backends with zero structural refactoring."*
+### Phase 11: Timezone-Aware Scheduler with `node-cron`
+* **Files:** `backend-express/services/scheduler.js`, `backend-express/models/User.js`.
+* Background cron ticks every 60 seconds, converts current UTC time to each user's local timezone (via `Intl.DateTimeFormat`), and executes the pipeline when local time matches `schedule.time` (e.g., `07:00`).
+
+### Phase 12: React Inshorts / Flipboard Dashboard Overhaul
+* **Files:** `frontend/src/App.jsx`, `frontend/src/index.css`, `frontend/vite.config.js`.
+* Designed card UI with dedicated tokens (`#6C5CE7` Primary, `#00D9A5` Secondary, `#FF9F43` Warm Accent, `#F7F7FC` Background).
+* Added explicit "Get News Now" CTA, skeleton loaders, and local storage state persistence.
+
+### Phase 13: MongoDB Atlas Vector Search & FastEmbed Pipeline
+* **Files:** `app/services/embedding_service.py`, `app/scripts/backfill_embeddings.py`, `app/database/repository.py`.
+* Integrated local 384-dimensional `fastembed` (`BAAI/bge-small-en-v1.5`).
+* Automatically vectorizes newly processed digests and backfilled 118 historical records to Atlas `article_embeddings`.
+
+### Phase 14: LangGraph RAG Q&A Agent & Live Web Search Fallback
+* **Files:** `app/services/search_service.py`, `app/agent/rag_agent.py`, `backend-express/routes/search.js`, `backend-express/routes/ask.js`.
+* Built `SearchService` supporting Google Custom Search API and Brave Search API with automatic error/quota failover.
+* Implemented `RAGAgent` using `langgraph.graph.StateGraph` for vector similarity checking and automated live search fallback.
+* Added "Ask News" conversational chat tab and standalone Live Web Search bar on the React dashboard.
 
 ---
-*(This handbook will be updated as we complete subsequent phases!)*
+
+## 7. Top Technical Interview Questions & Expert Answers
+
+### Q1: "Why split the system into Node/Express and Python/FastAPI instead of a single monolith?"
+> **Answer:** *"The two services have distinct operational profiles and lifecycle requirements. Node/Express is exceptionally lightweight for public I/O routing, user preference CRUD operations, and maintaining timezone-aware `node-cron` timers that run indefinitely. 
+> 
+> Python/FastAPI, on the other hand, is the optimal ecosystem for LLM orchestration, local embedding vectorization (FastEmbed/ONNX), LangGraph state machines, and keyless scraping pipelines. 
+> 
+> By decoupling them behind a private `X-Internal-Secret` header, we can scale or restart the scraping/ML workers independently without interrupting active user dashboard connections or cron timers."*
+
+### Q2: "How does your RAG system work and how do you prevent hallucinations?"
+> **Answer:** *"Our RAG pipeline uses a grounded, two-tiered retrieval architecture orchestrated by LangGraph:
+> 1. When a user asks a question, we compute a 384-dimensional dense vector using local FastEmbed and execute a topic-scoped `$vectorSearch` in MongoDB Atlas.
+> 2. The LangGraph state machine evaluates the top result's cosine similarity. If the score is below 0.70 or no matches exist, it automatically invokes live web search (Google CSE / Brave Search) for fresh ground truth.
+> 3. We pass retrieved articles into Groq LLM with a strict system prompt that instructs the model to answer solely using the provided context blocks and explicitly cite the source publication for every claim. If information is missing, the model is instructed to state what is unknown rather than guessing."*
+
+### Q3: "Why use local FastEmbed embeddings instead of OpenAI or Gemini embedding APIs?"
+> **Answer:** *"FastEmbed runs quantized ONNX models (`BAAI/bge-small-en-v1.5`) directly on the CPU. It generates 384-dimensional vectors in under 5 milliseconds with zero network latency, zero API costs, and zero rate limits. For news headlines and summaries, `bge-small-en` achieves top-tier ranking performance on MTEB benchmarks while eliminating external API dependencies."*
+
+### Q4: "How does LangGraph improve your agent architecture compared to simple sequential chains?"
+> **Answer:** *"Traditional linear chains assume that every step always succeeds and executes in a fixed order. In real-world news Q&A, stored vector embeddings might be insufficient or outdated. 
+> 
+> With LangGraph, we define an explicit `StateGraph` where state transitions are governed by conditional edges. If vector search similarity is sufficient, the graph takes the fast path directly to synthesis. If similarity is low, the graph conditionally branches to the live search node before converging at synthesis. This makes the execution flow inspectable, testable, and resilient."*
+
+### Q5: "How do you handle multi-provider search fallback and quota limits?"
+> **Answer:** *"Google Custom Search provides 100 free queries/day, while Brave Search provides 2,000 free queries/month. Our `SearchService` maintains an in-memory daily query counter for Google. If Google returns HTTP 429, errors out, or nears its 90-query threshold, the service automatically routes the query to Brave Search. The caller receives normalized results regardless of which provider fulfilled the query."*
+
+### Q6: "How do you ensure duplicate news is never scraped or emailed to users?"
+> **Answer:** *"We enforce idempotency at two stages:
+> 1. **Scraping Layer**: The repository checks if the article `url` already exists in MongoDB before inserting. Duplicate URLs are ignored.
+> 2. **Delivery Layer**: We maintain a `sent_logs` collection recording `user_id` and `digest_id`. Before generating the email, the curation service filters out all previously sent digest IDs, committing newly delivered IDs in the database transaction."*
+
+---
+
+*(Master Handbook updated with complete Two-Service Split, MongoDB Atlas Vector Search, FastEmbed, LangGraph StateGraph, and Live Search Fallback).*
