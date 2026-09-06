@@ -7,7 +7,7 @@ services:
     runtime: python
     region: oregon
     plan: free
-    buildCommand: "pip install --upgrade pip uv && uv pip install --system -r pyproject.toml"
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn app.server:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /api/health
     envVars:
