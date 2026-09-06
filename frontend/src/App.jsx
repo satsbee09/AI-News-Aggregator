@@ -111,6 +111,8 @@ const CATEGORY_META = {
 
 const PREDEFINED_TOPICS = Object.values(CATEGORY_META);
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 const SUGGESTED_PROMPTS = [
   "What are the latest breakthroughs in AI & LLMs?",
   "Give me a summary of current cricket & sports news",
@@ -172,7 +174,7 @@ export default function App() {
 
   const createUserAccount = async (userEmail) => {
     try {
-      const res = await fetch('/api/users', {
+      const res = await fetch(`${API_BASE}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail })
@@ -192,7 +194,7 @@ export default function App() {
 
   const loadUserProfile = async (userEmail) => {
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(userEmail)}`);
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(userEmail)}`);
       if (res.ok) {
         const data = await res.json();
         setUserProfile(data);
@@ -221,7 +223,7 @@ export default function App() {
     setTogglingSub(true);
     const nextState = !isSubscribed;
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(email)}/schedule`, {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(email)}/schedule`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: nextState })
@@ -245,7 +247,7 @@ export default function App() {
     if (!email || deletingAccount) return;
     setDeletingAccount(true);
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(email)}`, {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(email)}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -362,7 +364,7 @@ export default function App() {
     if (!email) return;
     setSavingTopics(true);
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(email)}/topics`, {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(email)}/topics`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topics: selectedTopics })
@@ -397,7 +399,7 @@ export default function App() {
     setPreviewError(false);
     
     try {
-      const res = await fetch('/api/news/preview', {
+      const res = await fetch(`${API_BASE}/api/news/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topics: topicsToFetch })
@@ -432,7 +434,7 @@ export default function App() {
         frequency: schedFreq,
         timezone: schedTz
       };
-      const res = await fetch(`/api/users/${encodeURIComponent(email)}/schedule`, {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(email)}/schedule`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -476,7 +478,7 @@ export default function App() {
     setChatLoading(true);
 
     try {
-      const res = await fetch('/api/ask', {
+      const res = await fetch(`${API_BASE}/api/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -536,7 +538,7 @@ export default function App() {
 
     setLiveSearchLoading(true);
     try {
-      const res = await fetch('/api/search/live', {
+      const res = await fetch(`${API_BASE}/api/search/live`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -571,7 +573,7 @@ export default function App() {
     setTriggeringDigest(true);
     showToast(`Dispatching live intelligence digest to ${email}...`, 'info');
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(email)}/trigger?dry_run=false`, {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(email)}/trigger?dry_run=false`, {
         method: 'POST'
       });
       const data = await res.json();

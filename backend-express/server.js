@@ -24,8 +24,6 @@ app.use('/api/news', newsRoutes);
 app.use('/api/ask', askRoutes);
 app.use('/api/search', searchRoutes);
 
-const { startScheduler } = require('./services/scheduler');
-
 // Health check route
 app.get('/api/health', (req, res) => {
   const dbState = mongoose.connection.readyState;
@@ -44,6 +42,28 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+const { startScheduler } = require('./services/scheduler');
+const path = require('path');
+const fs = require('fs');
+
+// Optional static frontend serving for unified deployment
+const distPath = path.join(__dirname, '../frontend/dist');
+const localPublicPath = path.join(__dirname, 'public');
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else if (fs.existsSync(localPublicPath)) {
+  app.use(express.static(localPublicPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(localPublicPath, 'index.html'));
+  });
+}
+
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`[EXPRESS SERVER] Service A running on port ${PORT}`);
@@ -52,3 +72,4 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 module.exports = app;
+

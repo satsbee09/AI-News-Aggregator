@@ -1,0 +1,95 @@
+services:
+  # ==========================================================
+  # Service B: Python FastAPI Intelligence Engine (Web Service)
+  # ==========================================================
+  - type: web
+    name: ai-news-fastapi
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install --upgrade pip uv && uv pip install --system -r pyproject.toml"
+    startCommand: "uvicorn app.server:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: ENVIRONMENT
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: news_aggregator
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: INTERNAL_API_SECRET
+        generateValue: true
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_APP_PASSWORD
+        sync: false
+      - key: RECIPIENT_EMAIL
+        sync: false
+      - key: GOOGLE_CSE_API_KEY
+        sync: false
+      - key: GOOGLE_CSE_ID
+        sync: false
+      - key: BRAVE_API_KEY
+        sync: false
+
+  # ==========================================================
+  # Service A: Node.js Express API Gateway (Web Service)
+  # ==========================================================
+  - type: web
+    name: ai-news-express
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend-express
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.10.0
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: FASTAPI_BASE_URL
+        fromService:
+          type: web
+          name: ai-news-fastapi
+          property: host
+      - key: INTERNAL_API_SECRET
+        fromService:
+          type: web
+          name: ai-news-fastapi
+          envVarKey: INTERNAL_API_SECRET
+
+  # ==========================================================
+  # Frontend: React 19 + Vite Static Site
+  # ==========================================================
+  - type: web
+    name: ai-news-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://ai-news-express.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: ""

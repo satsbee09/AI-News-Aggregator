@@ -1,0 +1,74 @@
+services:
+  # ==========================================================
+  # Service B: Python FastAPI Intelligence Engine
+  # ==========================================================
+  fastapi-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
+    container_name: ai-news-fastapi
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+      - ENVIRONMENT=production
+    networks:
+      - ai-news-network
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================================
+  # Service A: Node.js / Express API Gateway & Cron Scheduler
+  # ==========================================================
+  express-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.express
+    container_name: ai-news-express
+    restart: unless-stopped
+    depends_on:
+      fastapi-backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - FASTAPI_BASE_URL=http://fastapi-backend:8000
+    networks:
+      - ai-news-network
+    expose:
+      - "5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ==========================================================
+  # Frontend: React 19 + Vite Static Bundle via NGINX Proxy
+  # ==========================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: ai-news-frontend
+    restart: unless-stopped
+    depends_on:
+      - express-gateway
+    ports:
+      - "80:80"
+    networks:
+      - ai-news-network
+
+networks:
+  ai-news-network:
+    driver: bridge

@@ -1,0 +1,43 @@
+# ==========================================================
+# Dockerfile for Service B: Python FastAPI Intelligence Engine
+# ==========================================================
+FROM python:3.12-slim
+
+# Prevent Python from writing .pyc files and enable unbuffered logging
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
+
+WORKDIR /app
+
+# Install system utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for high-speed package management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Copy dependency definition files
+COPY pyproject.toml .
+
+# Install Python dependencies using uv pip
+RUN uv pip install --system --no-cache -r pyproject.toml
+
+# Copy application source code
+COPY app/ ./app/
+COPY main.py .
+
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8000/api/health || exit 1
+
+# Start FastAPI server via Uvicorn
+CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8000"]
