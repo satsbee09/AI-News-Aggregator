@@ -165,7 +165,6 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [savingTopics, setSavingTopics] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
-  const [triggeringDigest, setTriggeringDigest] = useState(false);
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -567,29 +566,6 @@ export default function App() {
     setLiveSearchQuery('');
   };
 
-  // Instant Manual Dispatch Test
-  const handleTriggerTest = async () => {
-    if (!email) return;
-    setTriggeringDigest(true);
-    showToast(`Dispatching live intelligence digest to ${email}...`, 'info');
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(email)}/trigger?dry_run=false`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
-        showToast(`Digest successfully delivered to ${email}!`, 'success');
-      } else {
-        showToast(data.message || 'Pipeline trigger completed', 'info');
-      }
-    } catch (err) {
-      console.error('Pipeline execution error:', err);
-      showToast('Error executing pipeline', 'error');
-    } finally {
-      setTriggeringDigest(false);
-    }
-  };
-
   // Toast Component
   const renderToast = () => {
     if (!toast) return null;
@@ -934,24 +910,6 @@ export default function App() {
                       <Clock size={16} /> {savingSchedule ? 'Updating...' : 'Save Delivery Schedule'}
                     </button>
                   </form>
-                </div>
-
-                {/* Instant Email Test Action */}
-                <div style={{ marginTop: '24px', background: '#F8F8FD', padding: '16px 20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-main)' }}>Instant Dispatch Test</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Send test digest directly to {email}</div>
-                    </div>
-                    <button
-                      onClick={handleTriggerTest}
-                      disabled={triggeringDigest}
-                      className="btn-secondary"
-                      style={{ fontSize: '12.5px', padding: '8px 16px' }}
-                    >
-                      <Send size={14} /> {triggeringDigest ? 'Sending...' : 'Send Now'}
-                    </button>
-                  </div>
                 </div>
 
               </div>
