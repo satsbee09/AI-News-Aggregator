@@ -34,9 +34,9 @@ RUN uv pip install --system --no-cache -r requirements.txt
 # 3. Build React 19 Frontend static assets
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm ci --silent
+RUN npm ci --include=dev --silent
 COPY frontend/ ./
-RUN npm run build
+RUN npm run build && rm -rf node_modules
 
 # 4. Install Node.js Express dependencies
 WORKDIR /app/backend-express
