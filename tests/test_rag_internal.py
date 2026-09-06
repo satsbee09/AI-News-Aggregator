@@ -29,7 +29,7 @@ def test_internal_ask_rag_answering():
     }
     
     payload = {
-        "email": "satsbee4921@gmail.com",
+        "email": "test@example.com",
         "question": "What are the latest AI models and breakthroughs?"
     }
     res = client.post("/internal/ask", json=payload, headers=headers)
