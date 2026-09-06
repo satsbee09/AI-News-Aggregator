@@ -96,32 +96,44 @@ sudo certbot --nginx -d news.yourdomain.com
 
 ---
 
-## Method 2: Render.com 1-Click Blueprint Deployment
+## Method 2: Render.com 1-Click All-in-One Service (Single Container)
 
-Render provides free/low-cost managed hosting with automated CI/CD directly from GitHub.
+Deploy the entire platform (**React 19 Frontend + Node.js API Gateway + Python FastAPI AI Engine**) as a **single unified Web Service** on Render. This uses only **1 free service slot**, has zero cold-start latency between services, and requires zero complex networking setup.
 
 ### Step 1: Push Code to GitHub
-Ensure all latest files (`render.yaml`, Dockerfiles, etc.) are committed and pushed:
 ```bash
 git add .
-git commit -m "Add production deployment configurations"
+git commit -m "Add unified all-in-one Render deployment"
 git push origin main
 ```
 
-### Step 2: Create Blueprint on Render
-1. Log in to [Render.com](https://render.com).
-2. In the top-right, click **New +** $\rightarrow$ **Blueprint**.
-3. Connect your repository: `satsbee09/AI-News-Aggregator`.
-4. Render will read [`render.yaml`](file:///render.yaml) and automatically create:
-   - `ai-news-fastapi` (Python Web Service)
-   - `ai-news-express` (Node.js Web Service)
-   - `ai-news-frontend` (Static Site)
-5. Under **Environment Variables**, fill in your secret keys:
-   - `MONGODB_URI`
-   - `GROQ_API_KEY`
-   - `EMAIL_USER` & `EMAIL_APP_PASSWORD`
-   - `RECIPIENT_EMAIL`
-6. Click **Apply**. Render will automatically build, link, and deploy all 3 services!
+### Step 2: Deploy on Render
+
+#### Option A: Via Blueprint (Automatic)
+1. Log in to [Render.com](https://render.com) $\rightarrow$ click **New +** $\rightarrow$ **Blueprint**.
+2. Connect your repo: `satsbee09/AI-News-Aggregator`.
+3. Render detects [`render.yaml`](file:///render.yaml) and creates `ai-news-aggregator` (Single Docker Web Service).
+4. Fill in your environment variables (`MONGODB_URI`, `GROQ_API_KEY`, `EMAIL_USER`, `EMAIL_APP_PASSWORD`) $\rightarrow$ Click **Apply**.
+
+#### Option B: Via Web Service (Manual)
+1. In Render, click **New +** $\rightarrow$ **Web Service**.
+2. Select your GitHub repository: `satsbee09/AI-News-Aggregator`.
+3. Configure:
+   - **Name**: `ai-news-aggregator`
+   - **Environment**: `Docker` (Render automatically uses the root `Dockerfile`)
+   - **Plan**: `Free`
+4. Under **Environment Variables**, add:
+   - `ENVIRONMENT` = `production`
+   - `MONGODB_URI` = `mongodb+srv://...`
+   - `MONGODB_DB_NAME` = `news_aggregator`
+   - `GROQ_API_KEY` = `gsk_...`
+   - `INTERNAL_API_SECRET` = (random 32 hex string)
+   - `EMAIL_HOST` = `smtp.gmail.com`
+   - `EMAIL_PORT` = `587`
+   - `EMAIL_USER` = your gmail address
+   - `EMAIL_APP_PASSWORD` = your 16-char app password
+   - `RECIPIENT_EMAIL` = your recipient email
+5. Click **Create Web Service**. Your complete all-in-one platform will be live at `https://ai-news-aggregator.onrender.com`!
 
 ---
 

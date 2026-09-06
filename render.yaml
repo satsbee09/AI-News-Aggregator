@@ -1,18 +1,16 @@
 services:
   # ==========================================================
-  # Service B: Python FastAPI Intelligence Engine (Web Service)
+  # Unified All-in-One Service: React + Express + FastAPI
+  # Deploys the entire platform as a single Docker web service
   # ==========================================================
   - type: web
-    name: ai-news-fastapi
-    runtime: python
+    name: ai-news-aggregator
+    runtime: docker
+    dockerfilePath: Dockerfile
     region: oregon
     plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn app.server:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /api/health
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.0
       - key: ENVIRONMENT
         value: production
       - key: MONGODB_URI
@@ -41,55 +39,3 @@ services:
         sync: false
       - key: BRAVE_API_KEY
         sync: false
-
-  # ==========================================================
-  # Service A: Node.js Express API Gateway (Web Service)
-  # ==========================================================
-  - type: web
-    name: ai-news-express
-    runtime: node
-    region: oregon
-    plan: free
-    rootDir: backend-express
-    buildCommand: "npm install"
-    startCommand: "npm start"
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_VERSION
-        value: 20.10.0
-      - key: NODE_ENV
-        value: production
-      - key: MONGODB_URI
-        sync: false
-      - key: FASTAPI_BASE_URL
-        fromService:
-          type: web
-          name: ai-news-fastapi
-          property: host
-      - key: INTERNAL_API_SECRET
-        fromService:
-          type: web
-          name: ai-news-fastapi
-          envVarKey: INTERNAL_API_SECRET
-
-  # ==========================================================
-  # Frontend: React 19 + Vite Static Site
-  # ==========================================================
-  - type: web
-    name: ai-news-frontend
-    runtime: static
-    region: oregon
-    plan: free
-    rootDir: frontend
-    buildCommand: "npm install && npm run build"
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://ai-news-express.onrender.com/api/*
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_BASE_URL
-        value: ""
