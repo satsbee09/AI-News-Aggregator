@@ -10,7 +10,12 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
+    const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!uri) {
+      console.error('[EXPRESS DB ERROR] MONGODB_URI environment variable is missing! Please set MONGODB_URI in your Render Environment settings.');
+      process.exit(1);
+    }
+    const conn = await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 10000,
     });
     console.log(`[EXPRESS DB] MongoDB Atlas Connected: ${conn.connection.host}`);
