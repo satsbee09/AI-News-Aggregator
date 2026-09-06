@@ -58,7 +58,7 @@ def run_test():
 
     # Log as sent
     print("\n7. Logging digest as sent in MongoDB...")
-    repo.log_sent_digest(digest_id=digest["_id"], recipient="test@gmail.com")
+    repo.log_sent_digest(digest_id=digest["_id"], recipient="test@example.com")
     remaining_unsent = repo.get_unsent_digests()
     print(f"   [SUCCESS] Remaining unsent digests: {len(remaining_unsent)}")
 
